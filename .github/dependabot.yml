@@ -23,5 +23,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     rebase-strategy: "auto"
