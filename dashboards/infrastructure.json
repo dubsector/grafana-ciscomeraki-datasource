@@ -1,0 +1,79 @@
+{
+  "__inputs": [{ "name": "DS", "label": "Meraki", "type": "datasource", "pluginId": "dubsector-ciscomeraki-datasource" }],
+  "__requires": [
+    { "type": "grafana",    "id": "grafana",   "name": "Grafana",      "version": "12.0.0" },
+    { "type": "datasource", "id": "dubsector-ciscomeraki-datasource", "name": "Cisco Meraki", "version": "1.0.0" },
+    { "type": "panel", "id": "table", "name": "Table", "version": "" },
+    { "type": "panel", "id": "text",  "name": "Text",  "version": "" }
+  ],
+  "title": "Meraki - Infrastructure",
+  "description": "Switch port statuses and appliance uplink state.",
+  "tags": ["meraki"],
+  "editable": true,
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "refresh": "1m",
+  "panels": [
+    {
+      "id": 1, "type": "text", "title": "",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 2 },
+      "transparent": true,
+      "options": { "mode": "markdown", "content": "Live data — time range picker has no effect on this dashboard." }
+    },
+    {
+      "id": 2, "type": "row", "title": "Switch Port Statuses",
+      "gridPos": { "x": 0, "y": 2, "w": 24, "h": 1 }, "panels": []
+    },
+    {
+      "id": 3, "type": "table", "title": "Port Statuses",
+      "gridPos": { "x": 0, "y": 3, "w": 24, "h": 10 },
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "targets": [{
+        "refId": "A",
+        "queryType": "switchPortStatuses", "deviceSerial": "${switch_serial}",
+        "networkId": "", "productType": "", "historical": false
+      }],
+      "options": { "sortBy": [{ "displayName": "portId", "desc": false }] },
+      "fieldConfig": {
+        "defaults": { "custom": { "filterable": true } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "status" },
+            "properties": [{ "id": "mappings", "value": [
+              { "type": "value", "options": { "connected":    { "text": "Up",   "color": "green" } } },
+              { "type": "value", "options": { "disconnected": { "text": "Down", "color": "red"   } } }
+            ]}]
+          }
+        ]
+      }
+    },
+    {
+      "id": 4, "type": "row", "title": "Appliance Uplink Statuses",
+      "gridPos": { "x": 0, "y": 13, "w": 24, "h": 1 }, "panels": []
+    },
+    {
+      "id": 5, "type": "table", "title": "WAN Uplinks",
+      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 8 },
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "targets": [{
+        "refId": "A",
+        "queryType": "applianceUplinkStatuses",
+        "networkId": "", "deviceSerial": "", "productType": "", "historical": false
+      }],
+      "options": { "sortBy": [{ "displayName": "networkId", "desc": false }] },
+      "fieldConfig": { "defaults": { "custom": { "filterable": true } }, "overrides": [] }
+    }
+  ],
+  "templating": { "list": [
+    { "name": "DS", "type": "datasource", "pluginId": "dubsector-ciscomeraki-datasource", "label": "Data Source", "hide": 0 },
+    {
+      "name": "switch_serial", "type": "query", "label": "Switch",
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "query": "{\"queryType\":\"devices\"}",
+      "refresh": 2, "sort": 1, "hide": 0
+    }
+  ]},
+  "annotations": { "list": [] },
+  "version": 1,
+  "id": null,
+  "uid": ""
+}

@@ -1,0 +1,33 @@
+{
+    "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
+    "type": "datasource",
+    "name": "Cisco Meraki",
+    "id": "dubsector-ciscomeraki-datasource",
+    "metrics": true,
+    "backend": true,
+    "alerting": true,
+    "executable": "gpx_dubsector_meraki",
+    "info": {
+        "description": "Grafana datasource for the Cisco Meraki Dashboard API v1",
+        "author": { "name": "dubsector" },
+        "keywords": ["datasource", "meraki", "cisco", "networking"],
+        "logos": {
+            "small": "img/cisco-meraki-logo.svg",
+            "large": "img/cisco-meraki-logo.svg"
+        },
+        "links": [],
+        "screenshots": [],
+        "version": "1.0.0",
+        "updated": "2025-01-01"
+    },
+    "includes": [
+        { "type": "dashboard", "name": "Meraki - Device Health",    "path": "dashboards/device-health.json" },
+        { "type": "dashboard", "name": "Meraki - Network Events",   "path": "dashboards/network-events.json" },
+        { "type": "dashboard", "name": "Meraki - Wireless",         "path": "dashboards/wireless.json" },
+        { "type": "dashboard", "name": "Meraki - Infrastructure",   "path": "dashboards/infrastructure.json" }
+    ],
+    "dependencies": {
+        "grafanaDependency": ">=10.4.0",
+        "plugins": []
+    }
+}

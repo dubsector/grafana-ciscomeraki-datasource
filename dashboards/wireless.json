@@ -1,0 +1,98 @@
+{
+  "__inputs": [{ "name": "DS", "label": "Meraki", "type": "datasource", "pluginId": "dubsector-ciscomeraki-datasource" }],
+  "__requires": [
+    { "type": "grafana",    "id": "grafana",   "name": "Grafana",      "version": "12.0.0" },
+    { "type": "datasource", "id": "dubsector-ciscomeraki-datasource", "name": "Cisco Meraki", "version": "1.0.0" },
+    { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+    { "type": "panel", "id": "stat",       "name": "Stat",        "version": "" },
+    { "type": "panel", "id": "table",      "name": "Table",       "version": "" }
+  ],
+  "title": "Meraki - Wireless",
+  "description": "Wireless client counts, latency, connection stats, and VPN.",
+  "tags": ["meraki", "wireless"],
+  "editable": true,
+  "graphTooltip": 0,
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "refresh": "5m",
+  "panels": [
+    {
+      "id": 1, "type": "row", "title": "Client Count",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "panels": []
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Wireless Client Count Over Time",
+      "gridPos": { "x": 0, "y": 1, "w": 24, "h": 8 },
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "targets": [{
+        "refId": "A",
+        "queryType": "wirelessClientCount", "networkId": "${network}",
+        "productType": "", "deviceSerial": "", "historical": false
+      }],
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineInterpolation": "smooth" } },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 3, "type": "row", "title": "Latency",
+      "gridPos": { "x": 0, "y": 9, "w": 24, "h": 1 }, "panels": []
+    },
+    {
+      "id": 4, "type": "stat", "title": "Background Latency (avg ms)",
+      "gridPos": { "x": 0, "y": 10, "w": 6, "h": 4 },
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "targets": [{ "refId": "A", "queryType": "wirelessLatencyStats", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
+      "options": { "reduceOptions": { "calcs": ["mean"], "fields": "/backgroundTraffic/" } },
+      "fieldConfig": { "defaults": { "unit": "ms", "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 150 }] }
+      }, "overrides": [] }
+    },
+    {
+      "id": 5, "type": "stat", "title": "Best Effort Latency (avg ms)",
+      "gridPos": { "x": 6, "y": 10, "w": 6, "h": 4 },
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "targets": [{ "refId": "A", "queryType": "wirelessLatencyStats", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
+      "options": { "reduceOptions": { "calcs": ["mean"], "fields": "/bestEffortTraffic/" } },
+      "fieldConfig": { "defaults": { "unit": "ms", "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 150 }] }
+      }, "overrides": [] }
+    },
+    {
+      "id": 6, "type": "row", "title": "Connection Stats",
+      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 1 }, "panels": []
+    },
+    {
+      "id": 7, "type": "table", "title": "Connection Stats",
+      "gridPos": { "x": 0, "y": 15, "w": 24, "h": 8 },
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "targets": [{ "refId": "A", "queryType": "wirelessConnectionStats", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
+      "fieldConfig": { "defaults": { "custom": { "filterable": true } }, "overrides": [] }
+    },
+    {
+      "id": 8, "type": "row", "title": "VPN",
+      "gridPos": { "x": 0, "y": 23, "w": 24, "h": 1 }, "panels": []
+    },
+    {
+      "id": 9, "type": "table", "title": "Site-to-Site VPN Stats",
+      "gridPos": { "x": 0, "y": 24, "w": 24, "h": 8 },
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "targets": [{ "refId": "A", "queryType": "vpnStats", "networkId": "", "productType": "", "deviceSerial": "", "historical": false }],
+      "fieldConfig": { "defaults": { "custom": { "filterable": true } }, "overrides": [] }
+    }
+  ],
+  "templating": { "list": [
+    { "name": "DS", "type": "datasource", "pluginId": "dubsector-ciscomeraki-datasource", "label": "Data Source", "hide": 0 },
+    {
+      "name": "network", "type": "query", "label": "Network",
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "query": "{\"queryType\":\"wirelessClientCount\"}",
+      "refresh": 2, "sort": 1, "hide": 0
+    }
+  ]},
+  "annotations": { "list": [] },
+  "version": 1,
+  "id": null,
+  "uid": ""
+}
