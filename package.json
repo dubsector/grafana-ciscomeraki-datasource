@@ -22,7 +22,7 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.4.0",
     "webpack": "^5.91.0",
-    "webpack-cli": "^5.1.4"
+    "webpack-cli": "^7.2.1"
   },
   "dependencies": {
     "@grafana/data": "^11.0.0",
