@@ -1,6 +1,6 @@
 {
   "name": "dubsector-ciscomeraki-datasource",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Grafana datasource plugin for Cisco Meraki Dashboard API v1",
   "scripts": {
     "build": "webpack --config webpack.config.js --mode production",
