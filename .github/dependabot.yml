@@ -20,6 +20,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      grafana-sdk:
+        patterns:
+          - "github.com/grafana/*"
     open-pull-requests-limit: 20
     rebase-strategy: "auto"
 
