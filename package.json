@@ -25,8 +25,8 @@
     "webpack-cli": "^7.2.1"
   },
   "dependencies": {
-    "@grafana/data": "^13.1.0",
-    "@grafana/runtime": "^13.1.0",
+    "@grafana/data": "^13.1.1",
+    "@grafana/runtime": "^13.1.1",
     "@grafana/schema": "^13.1.0",
     "@grafana/ui": "^13.1.0",
     "react": "18.2.0",
