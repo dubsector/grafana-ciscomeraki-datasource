@@ -13,6 +13,20 @@ updates:
       grafana:
         patterns:
           - "@grafana/*"
+    # Every @grafana/* package declares peer react@^18, so a React 19 bump can
+    # never resolve. Dependabot handles this gracefully for react itself, but on
+    # react-dom it fails with "Error while updating peer dependency" and exits
+    # non-zero, aborting the rest of the npm run. Lift these once Grafana
+    # supports React 19.
+    ignore:
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 20
     rebase-strategy: "auto"
 
