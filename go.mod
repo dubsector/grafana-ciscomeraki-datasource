@@ -2,7 +2,7 @@ module github.com/dubsector/meraki-datasource
 
 go 1.26.5
 
-require github.com/grafana/grafana-plugin-sdk-go v0.296.0
+require github.com/grafana/grafana-plugin-sdk-go v0.296.1
 
 tool github.com/magefile/mage
 
