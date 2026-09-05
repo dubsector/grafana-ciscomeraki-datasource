@@ -11,7 +11,7 @@
     "server": "docker-compose up --build"
   },
   "devDependencies": {
-    "@swc/core": "^1.16.0",
+    "@swc/core": "^1.16.1",
     "@types/node": "^26.4.1",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
