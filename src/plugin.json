@@ -17,8 +17,8 @@
         },
         "links": [],
         "screenshots": [],
-        "version": "1.0.4",
-        "updated": "2026-08-08"
+        "version": "1.0.5",
+        "updated": "2026-09-10"
     },
     "includes": [
         { "type": "dashboard", "name": "Meraki - Device Health",    "path": "dashboards/device-health.json" },
@@ -27,7 +27,7 @@
         { "type": "dashboard", "name": "Meraki - Infrastructure",   "path": "dashboards/infrastructure.json" }
     ],
     "dependencies": {
-        "grafanaDependency": ">=10.4.0",
+        "grafanaDependency": ">=11.5.0",
         "plugins": []
     }
 }
