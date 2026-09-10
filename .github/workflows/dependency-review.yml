@@ -19,3 +19,9 @@ jobs:
 
       - name: Review dependency changes
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          # react-router only reaches us via @grafana/ui -> react-router-dom-v5-compat,
+          # which pins it to an exact 6.30.x. The fix is in 7.18.0 and the v5-compat line
+          # ends at 6.30.6, so no patched version is reachable. @grafana/ui is a webpack
+          # external, so react-router never enters dist/module.js.
+          allow-ghsas: GHSA-337j-9hxr-rhxg, GHSA-wrjc-x8rr-h8h6
