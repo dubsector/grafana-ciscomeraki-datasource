@@ -1,4 +1,4 @@
-import { CoreApp, DataSourceInstanceSettings, MetricFindValue, ScopedVars } from '@grafana/data';
+import { CoreApp, MetricFindValue, ScopedVars } from '@grafana/data';
 import { DataSourceWithBackend, getTemplateSrv } from '@grafana/runtime';
 
 import {
@@ -17,10 +17,6 @@ interface TTLCache<T> { data: T; exp: number }
 export class MerakiDS extends DataSourceWithBackend<MerakiQuery, MerakiDSOpts> {
   private _networks: TTLCache<MerakiNetwork[]> | null = null;
   private _devices:  TTLCache<MerakiDevice[]>  | null = null;
-
-  constructor(settings: DataSourceInstanceSettings<MerakiDSOpts>) {
-    super(settings);
-  }
 
   getDefaultQuery(_: CoreApp): Partial<MerakiQuery> {
     return DEFAULT_QUERY;
