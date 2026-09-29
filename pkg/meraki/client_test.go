@@ -108,6 +108,78 @@ func TestNetworkEventsUnwrapsEvents(t *testing.T) {
 	}
 }
 
+// The real event log always sends rel=next, so paging must stop on its own.
+func TestNetworkEventsStopsPaging(t *testing.T) {
+	t.Parallel()
+
+	t0 := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+	t1 := time.Date(2026, 9, 29, 0, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name  string
+		pages []string
+		want  []string
+		calls int
+	}{
+		{
+			name: "empty page",
+			pages: []string{
+				`{"pageEndAt":"2026-09-28T10:00:00.000000Z","events":[{"type":"b"},{"type":"a"}]}`,
+				`{"pageEndAt":"2026-09-28T12:00:00.000000Z","events":[{"type":"c"}]}`,
+				`{"pageEndAt":"2026-09-29T00:00:00.000000Z","events":[]}`,
+			},
+			want:  []string{"a", "b", "c"},
+			calls: 3,
+		},
+		{
+			name: "reached t1",
+			pages: []string{
+				`{"pageEndAt":"2026-09-29T00:00:00.000000Z","events":[{"type":"b"},{"type":"a"}]}`,
+				`{"pageEndAt":"2026-09-29T01:00:00.000000Z","events":[{"type":"z"}]}`,
+			},
+			want:  []string{"a", "b"},
+			calls: 1,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			calls := 0
+			var server *httptest.Server
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				page := tc.pages[min(calls, len(tc.pages)-1)]
+				calls++
+				w.Header().Set("Link", "<"+server.URL+r.URL.Path+"?startingAfter=p"+string(rune('0'+calls))+">; rel=next")
+				_, _ = w.Write([]byte(page))
+			}))
+			defer server.Close()
+
+			rows, err := New(server.URL, "", "k").NetworkEvents(context.Background(), "network-1", "wireless", t0, t1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if calls != tc.calls {
+				t.Fatalf("calls = %d, want %d", calls, tc.calls)
+			}
+			var got []string
+			for _, r := range rows {
+				var e map[string]string
+				if err := json.Unmarshal(r, &e); err != nil {
+					t.Fatal(err)
+				}
+				got = append(got, e["type"])
+			}
+			if len(got) != len(tc.want) {
+				t.Fatalf("events = %v, want %v", got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Fatalf("events = %v, want %v", got, tc.want)
+				}
+			}
+		})
+	}
+}
+
 func TestOrganizationsReturnsHTTPError(t *testing.T) {
 	t.Parallel()
 

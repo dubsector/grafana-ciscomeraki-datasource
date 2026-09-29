@@ -183,23 +183,44 @@ func (c *Client) NetworkEvents(ctx context.Context, networkID, productType strin
 	if !t1.IsZero() {
 		p.Set("endingBefore", ts(t1))
 	}
-	raw, err := c.get(ctx, fmt.Sprintf("/networks/%s/events", networkID), p)
-	if err != nil {
-		return nil, err
-	}
-	// Response shape: { "pageStartAt": "...", "events": [...] }
+	u := c.base + fmt.Sprintf("/networks/%s/events", networkID) + "?" + p.Encode()
+	// The event log always sends rel=next, even past the newest event, so the
+	// generic get() loop would never end. Stop on an empty page or once past t1.
 	var out []json.RawMessage
-	for _, r := range raw {
+	for page := 0; page < maxEventPages; page++ {
+		body, next, err := c.fetch(ctx, u)
+		if err != nil {
+			return nil, err
+		}
 		var w struct {
-			Events []json.RawMessage `json:"events"`
+			PageEndAt string            `json:"pageEndAt"`
+			Events    []json.RawMessage `json:"events"`
 		}
-		if e := json.Unmarshal(r, &w); e == nil && w.Events != nil {
-			out = append(out, w.Events...)
-		} else {
-			out = append(out, r)
+		if e := json.Unmarshal(body, &w); e != nil || w.Events == nil {
+			return append(out, json.RawMessage(body)), nil
 		}
+		// Pages come newest first; reverse so the result is oldest first.
+		for i := len(w.Events) - 1; i >= 0; i-- {
+			out = append(out, w.Events[i])
+		}
+		if len(w.Events) == 0 || next == "" || next == u || pastEnd(w.PageEndAt, t1) {
+			break
+		}
+		u = next
 	}
 	return out, nil
+}
+
+// maxEventPages caps one events query at 100k events to protect the org's rate budget.
+const maxEventPages = 100
+
+// pastEnd reports whether a page's pageEndAt has reached t1.
+func pastEnd(pageEndAt string, t1 time.Time) bool {
+	if t1.IsZero() {
+		return false
+	}
+	end, err := time.Parse(time.RFC3339Nano, pageEndAt)
+	return err == nil && !end.Before(t1)
 }
 
 func (c *Client) SecurityEvents(ctx context.Context, networkID string, t0, t1 time.Time) ([]json.RawMessage, error) {
