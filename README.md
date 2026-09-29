@@ -22,18 +22,19 @@ A Grafana backend datasource plugin for the [Cisco Meraki Dashboard API v1](http
 - 4 pre-built dashboards (Device Health, Network Events, Wireless, Infrastructure)
 - API key stored securely in Grafana's encrypted config
 - Automatic pagination and retry with exponential backoff
+- Time ranges are trimmed to each Meraki endpoint's limits (for example 7 days per request for wireless stats), with a notice on the panel when that happens
 - 60-second TTL cache for network/device dropdown lists
 
 ## Requirements
 
-- Grafana >= 10.4.0
+- Grafana >= 11.5.0
 - Cisco Meraki Dashboard API key with at least read-only org access
 
 ## Installation
 
-### Option A — Download from GitHub Releases (easiest for testing)
+### Option A: Download from GitHub Releases (easiest for testing)
 
-1. Go to [Releases](https://github.com/dubsector/meraki-datasource/releases) and download the latest `dubsector-ciscomeraki-datasource.zip`
+1. Go to [Releases](https://github.com/dubsector/grafana-ciscomeraki-datasource/releases) and download the latest `dubsector-ciscomeraki-datasource.zip`
 2. Extract it to your Grafana plugins directory:
    - Linux/Mac: `/var/lib/grafana/plugins/`
    - Windows: `C:\Program Files\GrafanaLabs\grafana\data\plugins\`
@@ -44,7 +45,7 @@ A Grafana backend datasource plugin for the [Cisco Meraki Dashboard API v1](http
    ```
 4. Restart Grafana
 
-### Option B — Docker (for local testing)
+### Option B: Docker (for local testing)
 
 After building (see below), run:
 
@@ -64,25 +65,21 @@ In Grafana, add a new datasource of type **Cisco Meraki** and fill in:
 | Organization ID | Your org ID, found under **Organization → Settings** in the Meraki dashboard. |
 | API Key | Your Dashboard API key. Generate one under **My Profile → API access**. |
 
-Click **Save & Test** — a green check confirms connectivity.
+Click **Save & Test**. A green check confirms connectivity.
 
 ## Building from Source
 
-You need: **Node.js 20+**, **Go 1.21+**, and **[mage](https://magefile.org/)**.
+You need **Node.js 20.19+** and **Go 1.26+**. [Mage](https://magefile.org/) is pinned as a Go tool in `go.mod`, so there is nothing extra to install.
 
 ```bash
-# Install mage (one-time)
-go install github.com/magefile/mage@latest
-
 # Install frontend dependencies
-npm install
+npm ci
 
 # Build frontend
 npm run build
 
-# Generate go.sum and build backend binaries into dist/
-go mod tidy
-mage -v
+# Build backend binaries into dist/
+go tool mage -v
 
 # Verify dist/ has everything
 ls dist/
@@ -93,13 +90,27 @@ The `dist/` directory is the compiled plugin. Mount it in Grafana or run `docker
 ### Development mode
 
 ```bash
-npm run dev   # webpack watch mode — rebuilds on TypeScript changes
+npm run dev   # webpack watch mode, rebuilds on TypeScript changes
+```
+
+### Checks
+
+These are the same checks CI runs:
+
+```bash
+npm run typecheck
+npm run lint        # oxlint
+npm test
+go test ./pkg/...   # includes a check of every API call against the Meraki OpenAPI spec
+golangci-lint run   # config in .golangci.yml
 ```
 
 ## CI/CD
 
-The included GitHub Actions workflow (`.github/workflows/ci.yml`) builds the plugin on every push to `main` and creates a downloadable zip artifact. When you push a tag like `v1.0.0`, it automatically publishes a GitHub Release with the zip attached.
+`.github/workflows/ci.yml` runs on every pull request and push to `master`: type check, lint, tests, frontend and backend builds, then packages the plugin as a downloadable zip artifact.
+
+Pushing a tag like `v1.0.7` runs `.github/workflows/release.yml`, which builds the plugin and publishes a GitHub Release with the zip attached. The tag must match the version in both `package.json` and `src/plugin.json`.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE).
