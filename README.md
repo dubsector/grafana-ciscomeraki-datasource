@@ -11,7 +11,7 @@ A Grafana backend datasource plugin for the [Cisco Meraki Dashboard API v1](http
 | Security Events | IDS/IPS and appliance security alerts |
 | Network Clients | Clients currently seen on a network |
 | Device Clients | Clients seen on a specific device |
-| Wireless Latency Stats | Per-traffic-class latency by network or org |
+| Wireless Latency Stats | Per-traffic-class latency for a network |
 | Wireless Connection Stats | Auth, DHCP, DNS success counts |
 | Wireless Client Count | Historical client count time-series |
 | Switch Port Statuses | Live port status per switch device |
