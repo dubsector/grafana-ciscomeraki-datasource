@@ -17,8 +17,8 @@
         },
         "links": [],
         "screenshots": [],
-        "version": "1.0.5",
-        "updated": "2026-09-10"
+        "version": "1.0.6",
+        "updated": "2026-09-29"
     },
     "includes": [
         { "type": "dashboard", "name": "Meraki - Device Health",    "path": "dashboards/device-health.json" },
