@@ -97,6 +97,19 @@ func (d *DS) run(ctx context.Context, bq backend.DataQuery) backend.DataResponse
 	}
 	t0, t1 := bq.TimeRange.From, bq.TimeRange.To
 
+	var notice string
+	if w, ok := timeWindow(q); ok {
+		from, to, changed, err := w.Clamp(t0, t1, time.Now())
+		if err != nil {
+			return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("%s (last %d days)", err, w.LookbackDays()))
+		}
+		if changed {
+			notice = fmt.Sprintf("Meraki limits this query to %d days per request, going back at most %d days. Showing %s to %s.",
+				w.MaxSpanDays(), w.LookbackDays(), from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
+		}
+		t0, t1 = from, to
+	}
+
 	rows, err := d.dispatch(ctx, q, t0, t1)
 	if err != nil {
 		log.DefaultLogger.Error("meraki query", "type", q.QueryType, "err", err)
@@ -107,7 +120,27 @@ func (d *DS) run(ctx context.Context, bq backend.DataQuery) backend.DataResponse
 	if err != nil {
 		return backend.ErrDataResponse(backend.StatusInternal, err.Error())
 	}
+	if notice != "" {
+		frame.AppendNotices(data.Notice{Severity: data.NoticeSeverityInfo, Text: notice})
+	}
 	return backend.DataResponse{Frames: data.Frames{frame}}
+}
+
+// timeWindow returns the Meraki time limits for query types that take t0/t1.
+func timeWindow(q query) (meraki.Window, bool) {
+	switch q.QueryType {
+	case "deviceAvailabilities":
+		return meraki.AvailabilityHistoryWindow, q.Historical
+	case "securityEvents":
+		return meraki.SecurityEventsWindow, true
+	case "wirelessLatencyStats", "wirelessConnectionStats":
+		return meraki.WirelessStatsWindow, true
+	case "wirelessClientCount":
+		return meraki.ClientCountWindow, true
+	case "vpnStats":
+		return meraki.VPNStatsWindow, true
+	}
+	return meraki.Window{}, false
 }
 
 func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.RawMessage, error) {
@@ -138,8 +171,14 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 		}
 		return d.c.DeviceClients(ctx, q.DeviceSerial)
 	case "wirelessLatencyStats":
+		if q.NetworkID == "" {
+			return nil, fmt.Errorf("networkId required for wirelessLatencyStats")
+		}
 		return d.c.WirelessLatencyStats(ctx, q.NetworkID, t0, t1)
 	case "wirelessConnectionStats":
+		if q.NetworkID == "" {
+			return nil, fmt.Errorf("networkId required for wirelessConnectionStats")
+		}
 		return d.c.WirelessConnectionStats(ctx, q.NetworkID, t0, t1)
 	case "wirelessClientCount":
 		if q.NetworkID == "" {

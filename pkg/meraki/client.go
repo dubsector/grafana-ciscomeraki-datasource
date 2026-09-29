@@ -200,7 +200,7 @@ func (c *Client) NetworkEvents(ctx context.Context, networkID, productType strin
 
 func (c *Client) SecurityEvents(ctx context.Context, networkID string, t0, t1 time.Time) ([]json.RawMessage, error) {
 	p := url.Values{"perPage": {"1000"}, "t0": {ts(t0)}, "t1": {ts(t1)}}
-	return c.get(ctx, fmt.Sprintf("/networks/%s/appliance/security/intrusion/security/events", networkID), p)
+	return c.get(ctx, fmt.Sprintf("/networks/%s/appliance/security/events", networkID), p)
 }
 
 func (c *Client) NetworkClients(ctx context.Context, networkID string) ([]json.RawMessage, error) {
@@ -211,22 +211,16 @@ func (c *Client) DeviceClients(ctx context.Context, serial string) ([]json.RawMe
 	return c.get(ctx, fmt.Sprintf("/devices/%s/clients", serial), nil)
 }
 
+// Meraki has no org-wide version of the wireless latency and connection
+// stats endpoints, so both need a network.
 func (c *Client) WirelessLatencyStats(ctx context.Context, networkID string, t0, t1 time.Time) ([]json.RawMessage, error) {
 	p := url.Values{"t0": {ts(t0)}, "t1": {ts(t1)}}
-	path := fmt.Sprintf("/organizations/%s/wireless/devices/latencyStats", c.orgID)
-	if networkID != "" {
-		path = fmt.Sprintf("/networks/%s/wireless/latencyStats", networkID)
-	}
-	return c.get(ctx, path, p)
+	return c.get(ctx, fmt.Sprintf("/networks/%s/wireless/latencyStats", networkID), p)
 }
 
 func (c *Client) WirelessConnectionStats(ctx context.Context, networkID string, t0, t1 time.Time) ([]json.RawMessage, error) {
 	p := url.Values{"t0": {ts(t0)}, "t1": {ts(t1)}}
-	path := fmt.Sprintf("/organizations/%s/wireless/devices/connectionStats", c.orgID)
-	if networkID != "" {
-		path = fmt.Sprintf("/networks/%s/wireless/connectionStats", networkID)
-	}
-	return c.get(ctx, path, p)
+	return c.get(ctx, fmt.Sprintf("/networks/%s/wireless/connectionStats", networkID), p)
 }
 
 func (c *Client) WirelessClientCount(ctx context.Context, networkID string, t0, t1 time.Time) ([]json.RawMessage, error) {
@@ -243,6 +237,6 @@ func (c *Client) ApplianceUplinkStatuses(ctx context.Context) ([]json.RawMessage
 }
 
 func (c *Client) VPNStats(ctx context.Context, t0, t1 time.Time) ([]json.RawMessage, error) {
-	p := url.Values{"t0": {ts(t0)}, "t1": {ts(t1)}, "perPage": {"1000"}}
+	p := url.Values{"t0": {ts(t0)}, "t1": {ts(t1)}, "perPage": {"300"}}
 	return c.get(ctx, fmt.Sprintf("/organizations/%s/appliance/vpn/stats", c.orgID), p)
 }
