@@ -15,7 +15,8 @@ import (
 
 const DefaultBaseURL = "https://api.meraki.com/api/v1"
 
-var reLinkNext = regexp.MustCompile(`<([^>]+)>;\s*rel="next"`)
+// Meraki sends rel=next unquoted; RFC 8288 also allows rel="next".
+var reLinkNext = regexp.MustCompile(`<([^>]+)>;\s*rel=(?:next|"next")\s*(?:[,;]|$)`)
 
 type Client struct {
 	base   string
@@ -127,12 +128,15 @@ func (c *Client) do(ctx context.Context, u string) (body []byte, next string, st
 			retryAfter = time.Duration(s) * time.Second
 		}
 	}
-	if link := resp.Header.Get("Link"); link != "" {
-		if m := reLinkNext.FindStringSubmatch(link); len(m) == 2 {
-			next = m[1]
-		}
+	return body, nextLink(resp.Header.Get("Link")), resp.StatusCode, retryAfter, nil
+}
+
+// nextLink returns the rel=next URL from a Link header, or "" on the last page.
+func nextLink(header string) string {
+	if m := reLinkNext.FindStringSubmatch(header); len(m) == 2 {
+		return m[1]
 	}
-	return body, next, resp.StatusCode, retryAfter, nil
+	return ""
 }
 
 // ts formats a time.Time as RFC3339 UTC.
