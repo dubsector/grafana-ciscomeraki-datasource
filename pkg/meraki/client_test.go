@@ -41,11 +41,15 @@ func TestGetFollowsPagination(t *testing.T) {
 
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		first := "<" + server.URL + "/organizations?startingAfter=0000000000>; rel=first"
+		last := "<" + server.URL + "/organizations?endingBefore=zzzzzzzzzz>; rel=last"
 		if r.URL.Query().Get("page") == "2" {
+			w.Header().Set("Link", first+", <"+server.URL+"/organizations?endingBefore=2>; rel=prev, "+last)
 			_, _ = w.Write([]byte(`[{"id":2}]`))
 			return
 		}
-		w.Header().Set("Link", "<"+server.URL+"/organizations?page=2>; rel=\"next\"")
+		// Same shape as a real Meraki response: unquoted rel values.
+		w.Header().Set("Link", first+", <"+server.URL+"/organizations?page=2>; rel=next, "+last)
 		_, _ = w.Write([]byte(`[{"id":1}]`))
 	}))
 	defer server.Close()
@@ -56,6 +60,27 @@ func TestGetFollowsPagination(t *testing.T) {
 	}
 	if len(rows) != 2 {
 		t.Fatalf("row count = %d", len(rows))
+	}
+}
+
+func TestNextLink(t *testing.T) {
+	t.Parallel()
+
+	const base = "https://api.meraki.com/api/v1/organizations/1/devices"
+	cases := map[string]struct{ header, want string }{
+		"meraki unquoted": {
+			header: "<" + base + "?perPage=3&startingAfter=0000000000>; rel=first, <" + base + "?perPage=3&startingAfter=Q2XX-AAAA-BBBB>; rel=next, <" + base + "?endingBefore=zzzzzzzzzz&perPage=3>; rel=last",
+			want:   base + "?perPage=3&startingAfter=Q2XX-AAAA-BBBB",
+		},
+		"quoted":           {header: "<" + base + "?page=2>; rel=\"next\"", want: base + "?page=2"},
+		"next listed last": {header: "<" + base + "?a=1>; rel=prev, <" + base + "?b=2>; rel=next", want: base + "?b=2"},
+		"last page":        {header: "<" + base + "?a=1>; rel=first, <" + base + "?b=2>; rel=prev, <" + base + "?c=3>; rel=last"},
+		"no header":        {},
+	}
+	for name, tc := range cases {
+		if got := nextLink(tc.header); got != tc.want {
+			t.Errorf("%s: nextLink = %q, want %q", name, got, tc.want)
+		}
 	}
 }
 
