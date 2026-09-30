@@ -14,6 +14,7 @@ import {
   NEEDS_NETWORK,
   NETWORK_EVENT_PRODUCT_TYPES,
   NETWORK_PRODUCT_FILTER,
+  OPTIONAL_NETWORK,
   QUERY_TYPE_OPTIONS,
   QueryType,
 } from '../types';
@@ -184,17 +185,20 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
   // ── Derived flags ─────────────────────────────────────────────────────────
 
   const qt = query.queryType;
-  const showNetwork      = NEEDS_NETWORK.includes(qt);
+  const optionalNetwork  = OPTIONAL_NETWORK.includes(qt);
+  const showNetwork      = NEEDS_NETWORK.includes(qt) || optionalNetwork;
   const showDevice       = NEEDS_DEVICE.includes(qt);
   const showHistorical   = qt === 'deviceAvailabilities';
   const showEventPT      = qt === 'networkEvents';
-  const showDeviceFilter = qt === 'deviceAvailabilities';
+  const showDeviceFilter = qt === 'deviceAvailabilities' || qt === 'deviceStatuses';
   const isLive           = qt !== 'deviceAvailabilities' || !query.historical;
 
   const liveMessages: Partial<Record<QueryType, string>> = {
     deviceAvailabilities:   'Showing a live snapshot — enable Historical Data to use the time range picker.',
+    deviceStatuses:         'Live device status snapshot. Time range has no effect.',
     applianceUplinkStatuses:'Live WAN uplink snapshot. Time range has no effect.',
     switchPortStatuses:     'Live port state snapshot. Time range has no effect.',
+    applianceLanPorts:      'Current LAN port settings. Time range has no effect.',
     networkClients:         'Live client snapshot. Time range has no effect.',
     deviceClients:          'Live client snapshot. Time range has no effect.',
   };
@@ -234,7 +238,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
             options={networkOpts}
             value={query.networkId || null}
             onChange={onNetworkChange}
-            placeholder={nLoading ? 'Loading networks…' : 'Select a network'}
+            placeholder={nLoading ? 'Loading networks…' : optionalNetwork ? 'All networks' : 'Select a network'}
             isClearable
             width={40}
           />

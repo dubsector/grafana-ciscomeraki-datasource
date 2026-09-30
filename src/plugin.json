@@ -21,10 +21,11 @@
         "updated": "2026-09-29"
     },
     "includes": [
-        { "type": "dashboard", "name": "Meraki - Device Health",    "path": "dashboards/device-health.json" },
-        { "type": "dashboard", "name": "Meraki - Network Events",   "path": "dashboards/network-events.json" },
-        { "type": "dashboard", "name": "Meraki - Wireless",         "path": "dashboards/wireless.json" },
-        { "type": "dashboard", "name": "Meraki - Infrastructure",   "path": "dashboards/infrastructure.json" }
+        { "type": "dashboard", "name": "Meraki - Network Events",       "path": "dashboards/network-events.json" },
+        { "type": "dashboard", "name": "Meraki - Security & SD-WAN",    "path": "dashboards/security-sdwan.json" },
+        { "type": "dashboard", "name": "Meraki - Switching",            "path": "dashboards/switching.json" },
+        { "type": "dashboard", "name": "Meraki - Wireless",             "path": "dashboards/wireless.json" },
+        { "type": "dashboard", "name": "Meraki - Device Health",        "path": "dashboards/device-health.json" }
     ],
     "dependencies": {
         "grafanaDependency": ">=11.5.0",

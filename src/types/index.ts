@@ -5,6 +5,7 @@ import { DataQuery, DataSourceJsonData } from '@grafana/schema';
 
 export type QueryType =
   | 'deviceAvailabilities'
+  | 'deviceStatuses'
   | 'networkEvents'
   | 'securityEvents'
   | 'networkClients'
@@ -14,6 +15,7 @@ export type QueryType =
   | 'wirelessClientCount'
   | 'switchPortStatuses'
   | 'applianceUplinkStatuses'
+  | 'applianceLanPorts'
   | 'vpnStats';
 
 export interface QueryTypeOption {
@@ -24,6 +26,7 @@ export interface QueryTypeOption {
 
 export const QUERY_TYPE_OPTIONS: QueryTypeOption[] = [
   { value: 'deviceAvailabilities',     label: 'Device Availabilities',      description: 'Live device online/offline status' },
+  { value: 'deviceStatuses',           label: 'Device Statuses',             description: 'Live status with model, LAN IP and gateway' },
   { value: 'networkEvents',            label: 'Network Events',              description: 'DHCP, 802.11, VPN event logs' },
   { value: 'securityEvents',           label: 'Security Events',             description: 'IDS/IPS and appliance security alerts' },
   { value: 'networkClients',           label: 'Network Clients',             description: 'Clients seen on a network' },
@@ -33,16 +36,19 @@ export const QUERY_TYPE_OPTIONS: QueryTypeOption[] = [
   { value: 'wirelessClientCount',      label: 'Wireless Client Count',       description: 'Historical client count time-series' },
   { value: 'switchPortStatuses',       label: 'Switch Port Statuses',        description: 'Live port status per switch' },
   { value: 'applianceUplinkStatuses',  label: 'Appliance Uplink Statuses',   description: 'Live WAN uplink status' },
+  { value: 'applianceLanPorts',        label: 'Appliance LAN Ports',         description: 'MX LAN port settings (VLAN, access or trunk)' },
   { value: 'vpnStats',                 label: 'VPN Stats',                   description: 'Site-to-site VPN latency, loss, jitter' },
 ];
 
 // Query types that are live snapshots (time range has no effect)
 export const LIVE_QUERY_TYPES: QueryType[] = [
   'deviceAvailabilities',
+  'deviceStatuses',
   'networkClients',
   'deviceClients',
   'switchPortStatuses',
   'applianceUplinkStatuses',
+  'applianceLanPorts',
 ];
 
 // Query types that need a network selected
@@ -54,7 +60,15 @@ export const NEEDS_NETWORK: QueryType[] = [
   'wirelessConnectionStats',
   'wirelessClientCount',
   'switchPortStatuses',
+  'applianceLanPorts',
+];
+
+// Query types that can be narrowed to a network but default to the whole org
+export const OPTIONAL_NETWORK: QueryType[] = [
+  'deviceAvailabilities',
+  'deviceStatuses',
   'applianceUplinkStatuses',
+  'vpnStats',
 ];
 
 // Query types that need a device serial selected
@@ -75,6 +89,10 @@ export const DEVICE_PRODUCT_FILTER: Partial<Record<QueryType, string>> = {
 // For each query type, what network product types are relevant
 export const NETWORK_PRODUCT_FILTER: Partial<Record<QueryType, string[]>> = {
   securityEvents:          ['appliance'],
+  switchPortStatuses:      ['switch'],
+  applianceUplinkStatuses: ['appliance'],
+  applianceLanPorts:       ['appliance'],
+  vpnStats:                ['appliance'],
   networkClients:          ['wireless', 'appliance', 'switch', 'cellularGateway'],
   wirelessLatencyStats:    ['wireless'],
   wirelessConnectionStats: ['wireless'],

@@ -65,11 +65,12 @@ func TestClientMatchesSpec(t *testing.T) {
 		"Organizations":        func() error { _, err := c.Organizations(ctx); return err },
 		"Networks":             func() error { _, err := c.Networks(ctx); return err },
 		"Devices":              func() error { _, err := c.Devices(ctx); return err },
-		"DeviceAvailabilities": func() error { _, err := c.DeviceAvailabilities(ctx, "wireless"); return err },
+		"DeviceAvailabilities": func() error { _, err := c.DeviceAvailabilities(ctx, "wireless", "N_1"); return err },
 		"DeviceAvailabilityHistory": func() error {
-			_, err := c.DeviceAvailabilityHistory(ctx, t0, t1, "wireless")
+			_, err := c.DeviceAvailabilityHistory(ctx, t0, t1, "wireless", "N_1")
 			return err
 		},
+		"DeviceStatuses":          func() error { _, err := c.DeviceStatuses(ctx, "switch", "N_1"); return err },
 		"NetworkEvents":           func() error { _, err := c.NetworkEvents(ctx, "N_1", "wireless", t0, t1); return err },
 		"SecurityEvents":          func() error { _, err := c.SecurityEvents(ctx, "N_1", t0, t1); return err },
 		"NetworkClients":          func() error { _, err := c.NetworkClients(ctx, "N_1"); return err },
@@ -78,8 +79,9 @@ func TestClientMatchesSpec(t *testing.T) {
 		"WirelessConnectionStats": func() error { _, err := c.WirelessConnectionStats(ctx, "N_1", t0, t1); return err },
 		"WirelessClientCount":     func() error { _, err := c.WirelessClientCount(ctx, "N_1", t0, t1); return err },
 		"SwitchPortStatuses":      func() error { _, err := c.SwitchPortStatuses(ctx, "Q2XX-XXXX-XXXX"); return err },
-		"ApplianceUplinkStatuses": func() error { _, err := c.ApplianceUplinkStatuses(ctx); return err },
-		"VPNStats":                func() error { _, err := c.VPNStats(ctx, t0, t1); return err },
+		"ApplianceUplinkStatuses": func() error { _, err := c.ApplianceUplinkStatuses(ctx, "N_1"); return err },
+		"VPNStats":                func() error { _, err := c.VPNStats(ctx, t0, t1, "N_1"); return err },
+		"ApplianceLANPorts":       func() error { _, err := c.ApplianceLANPorts(ctx, "N_1"); return err },
 	}
 
 	ct := reflect.TypeOf(c)

@@ -1,10 +1,15 @@
 package plugin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
@@ -22,11 +27,101 @@ var (
 	_ instancemgmt.InstanceDisposer = (*DS)(nil)
 )
 
-type DS struct{ c *meraki.Client }
+type DS struct {
+	c *meraki.Client
+
+	mu       sync.Mutex
+	netNames map[string]string
+	netExp   time.Time
+}
+
+// networkNames maps network IDs to names, fetched at most once a minute.
+// A failed refresh keeps the old names rather than failing the query.
+func (d *DS) networkNames(ctx context.Context) map[string]string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.netNames != nil && time.Now().Before(d.netExp) {
+		return d.netNames
+	}
+	rows, err := d.c.Networks(ctx)
+	if err != nil {
+		return d.netNames
+	}
+	names := map[string]string{}
+	for _, r := range rows {
+		var n struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}
+		if json.Unmarshal(r, &n) == nil {
+			names[n.ID] = n.Name
+		}
+	}
+	d.netNames, d.netExp = names, time.Now().Add(time.Minute)
+	return names
+}
+
+// withNetworkNames adds network.name next to network.id, or networkName
+// after a flat networkId, since the device endpoints only return the ID.
+func withNetworkNames(rows []json.RawMessage, names map[string]string) []json.RawMessage {
+	for i, raw := range rows {
+		keys, vals, err := orderedObject(raw)
+		if err != nil {
+			continue
+		}
+		if j := slices.Index(keys, "networkId"); j >= 0 && !slices.Contains(keys, "networkName") {
+			var id string
+			_ = json.Unmarshal(vals[j], &id)
+			if name, ok := names[id]; ok {
+				b, _ := json.Marshal(name)
+				rows[i] = encodeObject(slices.Insert(keys, j+1, "networkName"), slices.Insert(vals, j+1, json.RawMessage(b)))
+			}
+			continue
+		}
+		j := slices.Index(keys, "network")
+		if j < 0 {
+			continue
+		}
+		nk, nv, err := orderedObject(vals[j])
+		if err != nil || slices.Contains(nk, "name") {
+			continue
+		}
+		var id string
+		if k := slices.Index(nk, "id"); k >= 0 {
+			_ = json.Unmarshal(nv[k], &id)
+		}
+		name, ok := names[id]
+		if !ok {
+			continue
+		}
+		b, _ := json.Marshal(name)
+		vals[j] = encodeObject(append(nk, "name"), append(nv, b))
+		rows[i] = encodeObject(keys, vals)
+	}
+	return rows
+}
 
 type config struct {
 	BaseURL        string `json:"baseUrl"`
-	OrganizationID string `json:"organizationId"`
+	OrganizationID orgID  `json:"organizationId"`
+}
+
+// orgID also accepts a number. Provisioning files often hold the org ID
+// unquoted, and Grafana turns numeric env vars into numbers.
+type orgID string
+
+func (o *orgID) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err == nil {
+		*o = orgID(s)
+		return nil
+	}
+	var n json.Number
+	if err := json.Unmarshal(b, &n); err != nil {
+		return fmt.Errorf("organizationId must be a string or a number, got %s", b)
+	}
+	*o = orgID(n.String())
+	return nil
 }
 
 func NewDS(_ context.Context, s backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
@@ -34,7 +129,7 @@ func NewDS(_ context.Context, s backend.DataSourceInstanceSettings) (instancemgm
 	if err := json.Unmarshal(s.JSONData, &cfg); err != nil {
 		return nil, fmt.Errorf("config: %w", err)
 	}
-	return &DS{c: meraki.New(cfg.BaseURL, cfg.OrganizationID, s.DecryptedSecureJSONData["apiKey"])}, nil
+	return &DS{c: meraki.New(cfg.BaseURL, string(cfg.OrganizationID), s.DecryptedSecureJSONData["apiKey"])}, nil
 }
 
 func (d *DS) Dispose() {}
@@ -146,10 +241,23 @@ func timeWindow(q query) (meraki.Window, bool) {
 func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.RawMessage, error) {
 	switch q.QueryType {
 	case "deviceAvailabilities":
+		fetch := d.c.DeviceAvailabilities
 		if q.Historical {
-			return d.c.DeviceAvailabilityHistory(ctx, t0, t1, q.ProductType)
+			fetch = func(ctx context.Context, pt, nid string) ([]json.RawMessage, error) {
+				return d.c.DeviceAvailabilityHistory(ctx, t0, t1, pt, nid)
+			}
 		}
-		return d.c.DeviceAvailabilities(ctx, q.ProductType)
+		rows, err := fetch(ctx, q.ProductType, q.NetworkID)
+		if err != nil {
+			return nil, err
+		}
+		return withNetworkNames(rows, d.networkNames(ctx)), nil
+	case "deviceStatuses":
+		rows, err := d.c.DeviceStatuses(ctx, q.ProductType, q.NetworkID)
+		if err != nil {
+			return nil, err
+		}
+		return withNetworkNames(rows, d.networkNames(ctx)), nil
 	case "networkEvents":
 		if q.NetworkID == "" {
 			return nil, fmt.Errorf("networkId required for networkEvents")
@@ -190,10 +298,23 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 			return nil, fmt.Errorf("deviceSerial required for switchPortStatuses")
 		}
 		return d.c.SwitchPortStatuses(ctx, q.DeviceSerial)
+	case "applianceLanPorts":
+		if q.NetworkID == "" {
+			return nil, fmt.Errorf("networkId required for applianceLanPorts")
+		}
+		return d.c.ApplianceLANPorts(ctx, q.NetworkID)
 	case "applianceUplinkStatuses":
-		return d.c.ApplianceUplinkStatuses(ctx)
+		rows, err := d.c.ApplianceUplinkStatuses(ctx, q.NetworkID)
+		if err != nil {
+			return nil, err
+		}
+		return explode(rows, "uplinks"), nil
 	case "vpnStats":
-		return d.c.VPNStats(ctx, t0, t1)
+		rows, err := d.c.VPNStats(ctx, t0, t1, q.NetworkID)
+		if err != nil {
+			return nil, err
+		}
+		return vpnPeerRows(rows), nil
 	default:
 		return nil, fmt.Errorf("unknown queryType: %s", q.QueryType)
 	}
@@ -212,18 +333,19 @@ func buildFrame(name string, rows []json.RawMessage) (*data.Frame, error) {
 		return frame, nil
 	}
 
+	// Columns follow the API's field order, so they don't reshuffle per request.
 	var keys []string
 	seen := map[string]bool{}
 	maps := make([]map[string]interface{}, 0, len(rows))
 
 	for _, raw := range rows {
-		var obj map[string]interface{}
-		if err := json.Unmarshal(raw, &obj); err != nil {
+		var rowKeys []string
+		flat := map[string]interface{}{}
+		if err := flatten(raw, "", &rowKeys, flat); err != nil {
 			continue
 		}
-		flat := flatObj(obj, "")
 		maps = append(maps, flat)
-		for k := range flat {
+		for _, k := range rowKeys {
 			if !seen[k] {
 				seen[k] = true
 				keys = append(keys, k)
@@ -246,22 +368,180 @@ func buildFrame(name string, rows []json.RawMessage) (*data.Frame, error) {
 	return frame, nil
 }
 
-func flatObj(m map[string]interface{}, prefix string) map[string]interface{} {
-	out := map[string]interface{}{}
-	for k, v := range m {
-		key := k
-		if prefix != "" {
-			key = prefix + "." + k
+// explode gives each element of a row's array field its own row, repeating
+// the row's other fields, so a table shows one line per uplink.
+func explode(rows []json.RawMessage, field string) []json.RawMessage {
+	out := make([]json.RawMessage, 0, len(rows))
+	for _, raw := range rows {
+		keys, vals, err := orderedObject(raw)
+		i := slices.Index(keys, field)
+		var items []json.RawMessage
+		if err != nil || i < 0 || json.Unmarshal(vals[i], &items) != nil || len(items) == 0 {
+			out = append(out, raw)
+			continue
 		}
-		if child, ok := v.(map[string]interface{}); ok {
-			for ck, cv := range flatObj(child, key) {
-				out[ck] = cv
+		for _, item := range items {
+			ik, iv, err := orderedObject(item)
+			if err != nil {
+				continue
 			}
-		} else {
-			out[key] = v
+			out = append(out, encodeObject(
+				slices.Concat(keys[:i], ik, keys[i+1:]),
+				slices.Concat(vals[:i], iv, vals[i+1:]),
+			))
 		}
 	}
 	return out
+}
+
+// vpnPeerRows gives each network, Meraki VPN peer and uplink pair its own
+// row, joining the latency, loss, jitter and MOS summaries on the pair.
+func vpnPeerRows(rows []json.RawMessage) []json.RawMessage {
+	type peer struct {
+		NetworkID   string `json:"networkId"`
+		NetworkName string `json:"networkName"`
+		Usage       struct {
+			Sent     *float64 `json:"sentInKilobytes"`
+			Received *float64 `json:"receivedInKilobytes"`
+		} `json:"usageSummary"`
+		Latency []map[string]interface{} `json:"latencySummaries"`
+		Loss    []map[string]interface{} `json:"lossPercentageSummaries"`
+		Jitter  []map[string]interface{} `json:"jitterSummaries"`
+		MOS     []map[string]interface{} `json:"mosSummaries"`
+	}
+	var out []json.RawMessage
+	for _, raw := range rows {
+		var s struct {
+			NetworkID   string `json:"networkId"`
+			NetworkName string `json:"networkName"`
+			Peers       []peer `json:"merakiVpnPeers"`
+		}
+		if json.Unmarshal(raw, &s) != nil {
+			continue
+		}
+		for _, p := range s.Peers {
+			var order []string
+			pairs := map[string]map[string]interface{}{}
+			for _, list := range [][]map[string]interface{}{p.Latency, p.Loss, p.Jitter, p.MOS} {
+				for _, m := range list {
+					key := fmt.Sprint(m["senderUplink"], "|", m["receiverUplink"])
+					if pairs[key] == nil {
+						pairs[key] = map[string]interface{}{}
+						order = append(order, key)
+					}
+					maps.Copy(pairs[key], m)
+				}
+			}
+			if len(order) == 0 {
+				order, pairs[""] = []string{""}, map[string]interface{}{}
+			}
+			for _, key := range order {
+				m := pairs[key]
+				m["networkName"], m["networkId"] = s.NetworkName, s.NetworkID
+				m["peerNetworkName"], m["peerNetworkId"] = p.NetworkName, p.NetworkID
+				m["sentInKilobytes"], m["receivedInKilobytes"] = p.Usage.Sent, p.Usage.Received
+				out = append(out, jsonInOrder(m, vpnColumns))
+			}
+		}
+	}
+	return out
+}
+
+var vpnColumns = []string{
+	"networkName", "peerNetworkName", "senderUplink", "receiverUplink", "sentInKilobytes", "receivedInKilobytes",
+	"avgLatencyMs", "minLatencyMs", "maxLatencyMs", "avgLossPercentage", "minLossPercentage", "maxLossPercentage",
+	"avgJitter", "minJitter", "maxJitter", "avgMos", "minMos", "maxMos", "networkId", "peerNetworkId",
+}
+
+// jsonInOrder encodes m with the keys in first leading, then the rest sorted.
+func jsonInOrder(m map[string]interface{}, first []string) json.RawMessage {
+	var keys, rest []string
+	for _, k := range first {
+		if _, ok := m[k]; ok {
+			keys = append(keys, k)
+		}
+	}
+	for k := range m {
+		if !slices.Contains(first, k) {
+			rest = append(rest, k)
+		}
+	}
+	slices.Sort(rest)
+	keys = append(keys, rest...)
+	vals := make([]json.RawMessage, len(keys))
+	for i, k := range keys {
+		vals[i], _ = json.Marshal(m[k])
+	}
+	return encodeObject(keys, vals)
+}
+
+// orderedObject splits a JSON object into its keys and raw values, in order.
+func orderedObject(raw json.RawMessage) ([]string, []json.RawMessage, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
+		return nil, nil, fmt.Errorf("not a JSON object")
+	}
+	var keys []string
+	var vals []json.RawMessage
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return nil, nil, err
+		}
+		var v json.RawMessage
+		if err := dec.Decode(&v); err != nil {
+			return nil, nil, err
+		}
+		key, _ := tok.(string)
+		keys = append(keys, key)
+		vals = append(vals, v)
+	}
+	return keys, vals, nil
+}
+
+func encodeObject(keys []string, vals []json.RawMessage) json.RawMessage {
+	var b bytes.Buffer
+	b.WriteByte('{')
+	for i, k := range keys {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		kb, _ := json.Marshal(k)
+		b.Write(kb)
+		b.WriteByte(':')
+		b.Write(vals[i])
+	}
+	b.WriteByte('}')
+	return b.Bytes()
+}
+
+// flatten walks a JSON object in source order, joining nested keys with dots.
+func flatten(raw json.RawMessage, prefix string, keys *[]string, out map[string]interface{}) error {
+	ks, vs, err := orderedObject(raw)
+	if err != nil {
+		return err
+	}
+	for i, key := range ks {
+		if prefix != "" {
+			key = prefix + "." + key
+		}
+		v := vs[i]
+		if bytes.HasPrefix(bytes.TrimSpace(v), []byte("{")) {
+			if err := flatten(v, key, keys, out); err != nil {
+				return err
+			}
+			continue
+		}
+		var leaf interface{}
+		if err := json.Unmarshal(v, &leaf); err != nil {
+			return err
+		}
+		if _, dup := out[key]; !dup {
+			*keys = append(*keys, key)
+		}
+		out[key] = leaf
+	}
+	return nil
 }
 
 func makeField(name string, vals []interface{}) *data.Field {
@@ -311,9 +591,28 @@ func makeField(name string, vals []interface{}) *data.Field {
 	typed := make([]*string, len(vals))
 	for i, x := range vals {
 		if x != nil {
-			s := fmt.Sprintf("%v", x)
+			s := cellText(x)
 			typed[i] = &s
 		}
 	}
 	return data.NewField(name, nil, typed)
+}
+
+// cellText shows a list of plain values as "a, b" and anything else
+// nested as JSON, instead of Go's [a b] and map[...] syntax.
+func cellText(v interface{}) string {
+	arr, ok := v.([]interface{})
+	if !ok {
+		return fmt.Sprintf("%v", v)
+	}
+	parts := make([]string, 0, len(arr))
+	for _, x := range arr {
+		switch x.(type) {
+		case map[string]interface{}, []interface{}:
+			b, _ := json.Marshal(arr)
+			return string(b)
+		}
+		parts = append(parts, fmt.Sprintf("%v", x))
+	}
+	return strings.Join(parts, ", ")
 }

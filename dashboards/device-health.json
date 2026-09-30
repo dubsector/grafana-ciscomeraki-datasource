@@ -28,17 +28,23 @@
         "queryType": "deviceAvailabilities", "networkId": "", "deviceSerial": "",
         "productType": "", "historical": false
       }],
-      "options": { "reduceOptions": { "calcs": ["count"], "fields": "/^Serial$/" }, "colorMode": "value", "graphMode": "none" },
+      "transformations": [{
+        "id": "filterByValue",
+        "options": { "type": "include", "match": "any", "filters": [
+          { "fieldName": "status", "config": { "id": "equal", "options": { "value": "online" } } }
+        ]}
+      }],
+      "options": { "reduceOptions": { "calcs": ["count"], "fields": "/^serial$/" }, "colorMode": "value", "graphMode": "none" },
       "fieldConfig": {
         "defaults": {
+          "noValue": "0",
+          "unit": "none",
           "color": { "mode": "thresholds" },
           "thresholds": { "mode": "absolute", "steps": [
             { "color": "red", "value": null }, { "color": "green", "value": 1 }
           ]}
         },
-        "overrides": [{ "matcher": { "id": "byName", "options": "Serial" },
-          "properties": [{ "id": "mappings", "value": [{ "type": "value", "options": { "online": { "color": "green" } } }] }]
-        }]
+        "overrides": []
       }
     },
     {
@@ -47,15 +53,22 @@
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
-        "queryType": "deviceAvailabilities", "networkId": "", "deviceSerial": "",
+        "queryType": "deviceStatuses", "networkId": "", "deviceSerial": "",
         "productType": "", "historical": false
       }],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["name", "status", "networkName", "productType", "model", "lanIp", "publicIp", "serial", "mac", "tags"] } } },
+        { "id": "organize", "options": {
+          "indexByName": { "name": 0, "status": 1, "networkName": 2, "productType": 3, "model": 4, "lanIp": 5, "publicIp": 6, "serial": 7, "mac": 8, "tags": 9 },
+          "renameByName": { "name": "Name", "status": "Status", "networkName": "Network", "productType": "Product", "model": "Model", "lanIp": "LAN IP", "publicIp": "Public IP", "serial": "Serial", "mac": "MAC", "tags": "Tags" }
+        }}
+      ],
       "options": { "sortBy": [{ "displayName": "Status", "desc": false }] },
       "fieldConfig": {
         "defaults": { "custom": { "filterable": true } },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "status" },
-            "properties": [{ "id": "custom.width", "value": 100 },
+          { "matcher": { "id": "byName", "options": "Status" },
+            "properties": [{ "id": "custom.width", "value": 100 }, { "id": "custom.cellOptions", "value": { "type": "color-text" } },
               { "id": "mappings", "value": [
                 { "type": "value", "options": { "online":   { "text": "Online",   "color": "green" } } },
                 { "type": "value", "options": { "offline":  { "text": "Offline",  "color": "red"   } } },

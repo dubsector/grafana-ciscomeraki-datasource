@@ -167,17 +167,20 @@ func TestE2E(t *testing.T) {
 			}
 			for _, pt := range products {
 				run("DeviceAvailabilities", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
-					return c.DeviceAvailabilities(ctx, pt)
+					return c.DeviceAvailabilities(ctx, pt, "")
 				})
 			}
+			run("DeviceStatuses", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.DeviceStatuses(ctx, "", "")
+			})
 			run("DeviceAvailabilityHistory", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
-				return c.DeviceAvailabilityHistory(ctx, week0, now, "")
+				return c.DeviceAvailabilityHistory(ctx, week0, now, "", "")
 			})
 			run("ApplianceUplinkStatuses", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
-				return c.ApplianceUplinkStatuses(ctx)
+				return c.ApplianceUplinkStatuses(ctx, "")
 			})
 			run("VPNStats", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
-				return c.VPNStats(ctx, day0, now)
+				return c.VPNStats(ctx, day0, now, "")
 			})
 
 			for _, n := range nets {
@@ -189,6 +192,36 @@ func TestE2E(t *testing.T) {
 					run("NetworkClients", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 						return c.NetworkClients(ctx, n.ID)
 					})
+					avail := run("DeviceAvailabilities", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+						return c.DeviceAvailabilities(ctx, "", n.ID)
+					})
+					if len(avail) == 0 {
+						t.Error("DeviceAvailabilities: no devices in the network")
+					}
+					for _, a := range avail {
+						var row struct {
+							Network struct {
+								ID string `json:"id"`
+							} `json:"network"`
+						}
+						if json.Unmarshal(a, &row) == nil && row.Network.ID != n.ID {
+							t.Errorf("DeviceAvailabilities: got network %s, want %s", row.Network.ID, n.ID)
+						}
+					}
+					statuses := run("DeviceStatuses", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+						return c.DeviceStatuses(ctx, "", n.ID)
+					})
+					if len(statuses) != len(avail) {
+						t.Errorf("DeviceStatuses: %d devices, availabilities has %d", len(statuses), len(avail))
+					}
+					for _, s := range statuses {
+						var row struct {
+							NetworkID string `json:"networkId"`
+						}
+						if json.Unmarshal(s, &row) == nil && row.NetworkID != n.ID {
+							t.Errorf("DeviceStatuses: got network %s, want %s", row.NetworkID, n.ID)
+						}
+					}
 					for _, pt := range n.ProductTypes {
 						events := run("NetworkEvents", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 							return c.NetworkEvents(ctx, n.ID, pt, day0, now)
@@ -199,6 +232,31 @@ func TestE2E(t *testing.T) {
 						run("SecurityEvents", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 							return c.SecurityEvents(ctx, n.ID, day0, now)
 						})
+						uplinks := run("ApplianceUplinkStatuses", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+							return c.ApplianceUplinkStatuses(ctx, n.ID)
+						})
+						if len(uplinks) == 0 {
+							t.Error("ApplianceUplinkStatuses: no appliance in a network with one")
+						}
+						lan := run("ApplianceLANPorts", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+							return c.ApplianceLANPorts(ctx, n.ID)
+						})
+						if len(lan) == 0 {
+							t.Error("ApplianceLANPorts: no LAN ports on the MX")
+						}
+						vpn := run("VPNStats", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+							return c.VPNStats(ctx, day0, now, n.ID)
+						})
+						for method, rows := range map[string][]json.RawMessage{"ApplianceUplinkStatuses": uplinks, "VPNStats": vpn} {
+							for _, r := range rows {
+								var row struct {
+									NetworkID string `json:"networkId"`
+								}
+								if json.Unmarshal(r, &row) == nil && row.NetworkID != n.ID {
+									t.Errorf("%s: got network %s, want %s", method, row.NetworkID, n.ID)
+								}
+							}
+						}
 					}
 					if slices.Contains(n.ProductTypes, "wireless") {
 						run("WirelessLatencyStats", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
