@@ -17,8 +17,8 @@
         },
         "links": [],
         "screenshots": [],
-        "version": "1.0.7",
-        "updated": "2026-09-29"
+        "version": "1.1.0",
+        "updated": "2026-09-30"
     },
     "includes": [
         { "type": "dashboard", "name": "Meraki - Network Events",       "path": "dashboards/network-events.json" },
