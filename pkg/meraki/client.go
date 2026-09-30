@@ -272,6 +272,11 @@ func (c *Client) ApplianceUplinkStatuses(ctx context.Context, networkID string) 
 	return c.get(ctx, fmt.Sprintf("/organizations/%s/appliance/uplink/statuses", c.orgID), p)
 }
 
+// ApplianceLANPorts is the MX's LAN port config; the API has no live port state.
+func (c *Client) ApplianceLANPorts(ctx context.Context, networkID string) ([]json.RawMessage, error) {
+	return c.get(ctx, fmt.Sprintf("/networks/%s/appliance/ports", networkID), nil)
+}
+
 // VPNStats covers the whole org when networkID is empty.
 func (c *Client) VPNStats(ctx context.Context, t0, t1 time.Time, networkID string) ([]json.RawMessage, error) {
 	p := url.Values{"t0": {ts(t0)}, "t1": {ts(t1)}, "perPage": {"300"}}

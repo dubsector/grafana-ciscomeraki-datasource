@@ -34,7 +34,7 @@
     }
   ],
   "title": "Meraki - Security & SD-WAN",
-  "description": "WAN uplinks and Meraki VPN peers for one network.",
+  "description": "WAN uplinks, Meraki VPN peers and LAN port settings for one network.",
   "tags": [
     "meraki",
     "appliance"
@@ -60,7 +60,7 @@
       "transparent": true,
       "options": {
         "mode": "markdown",
-        "content": "Uplinks are live. VPN stats cover the selected time range."
+        "content": "Uplinks and LAN port settings are live. VPN stats cover the selected time range."
       }
     },
     {
@@ -444,6 +444,151 @@
                     }
                   ]
                 }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "LAN Ports",
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "LAN port settings",
+      "description": "How each MX LAN port is configured. The Meraki API has no live link state for MX ports.",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "applianceLanPorts",
+          "networkId": "${network}",
+          "deviceSerial": "",
+          "productType": "",
+          "historical": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "number",
+                "enabled",
+                "type",
+                "vlan",
+                "allowedVlans",
+                "accessPolicy",
+                "dropUntaggedTraffic"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "number": 0,
+              "enabled": 1,
+              "type": 2,
+              "vlan": 3,
+              "allowedVlans": 4,
+              "accessPolicy": 5,
+              "dropUntaggedTraffic": 6
+            },
+            "renameByName": {
+              "number": "Port",
+              "enabled": "Enabled",
+              "type": "Mode",
+              "vlan": "VLAN",
+              "allowedVlans": "Allowed VLANs",
+              "accessPolicy": "Access policy",
+              "dropUntaggedTraffic": "Drop untagged"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No appliance in this network",
+          "custom": {
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "noValue",
+                "value": ""
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Enabled"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "true": {
+                        "text": "Enabled",
+                        "color": "green"
+                      },
+                      "false": {
+                        "text": "Disabled",
+                        "color": "#8e8e8e"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "VLAN"
+            },
+            "properties": [
+              {
+                "id": "description",
+                "value": "Access VLAN, or the native VLAN on a trunk"
               }
             ]
           }

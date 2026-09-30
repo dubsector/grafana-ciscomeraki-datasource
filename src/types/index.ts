@@ -14,6 +14,7 @@ export type QueryType =
   | 'wirelessClientCount'
   | 'switchPortStatuses'
   | 'applianceUplinkStatuses'
+  | 'applianceLanPorts'
   | 'vpnStats';
 
 export interface QueryTypeOption {
@@ -33,6 +34,7 @@ export const QUERY_TYPE_OPTIONS: QueryTypeOption[] = [
   { value: 'wirelessClientCount',      label: 'Wireless Client Count',       description: 'Historical client count time-series' },
   { value: 'switchPortStatuses',       label: 'Switch Port Statuses',        description: 'Live port status per switch' },
   { value: 'applianceUplinkStatuses',  label: 'Appliance Uplink Statuses',   description: 'Live WAN uplink status' },
+  { value: 'applianceLanPorts',        label: 'Appliance LAN Ports',         description: 'MX LAN port settings (VLAN, access or trunk)' },
   { value: 'vpnStats',                 label: 'VPN Stats',                   description: 'Site-to-site VPN latency, loss, jitter' },
 ];
 
@@ -43,6 +45,7 @@ export const LIVE_QUERY_TYPES: QueryType[] = [
   'deviceClients',
   'switchPortStatuses',
   'applianceUplinkStatuses',
+  'applianceLanPorts',
 ];
 
 // Query types that need a network selected
@@ -54,6 +57,7 @@ export const NEEDS_NETWORK: QueryType[] = [
   'wirelessConnectionStats',
   'wirelessClientCount',
   'switchPortStatuses',
+  'applianceLanPorts',
 ];
 
 // Query types that can be narrowed to a network but default to the whole org
@@ -83,6 +87,7 @@ export const NETWORK_PRODUCT_FILTER: Partial<Record<QueryType, string[]>> = {
   securityEvents:          ['appliance'],
   switchPortStatuses:      ['switch'],
   applianceUplinkStatuses: ['appliance'],
+  applianceLanPorts:       ['appliance'],
   vpnStats:                ['appliance'],
   networkClients:          ['wireless', 'appliance', 'switch', 'cellularGateway'],
   wirelessLatencyStats:    ['wireless'],

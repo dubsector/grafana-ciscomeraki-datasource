@@ -221,6 +221,12 @@ func TestE2E(t *testing.T) {
 						if len(uplinks) == 0 {
 							t.Error("ApplianceUplinkStatuses: no appliance in a network with one")
 						}
+						lan := run("ApplianceLANPorts", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+							return c.ApplianceLANPorts(ctx, n.ID)
+						})
+						if len(lan) == 0 {
+							t.Error("ApplianceLANPorts: no LAN ports on the MX")
+						}
 						vpn := run("VPNStats", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 							return c.VPNStats(ctx, day0, now, n.ID)
 						})

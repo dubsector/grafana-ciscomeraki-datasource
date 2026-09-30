@@ -280,6 +280,11 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 			return nil, fmt.Errorf("deviceSerial required for switchPortStatuses")
 		}
 		return d.c.SwitchPortStatuses(ctx, q.DeviceSerial)
+	case "applianceLanPorts":
+		if q.NetworkID == "" {
+			return nil, fmt.Errorf("networkId required for applianceLanPorts")
+		}
+		return d.c.ApplianceLANPorts(ctx, q.NetworkID)
 	case "applianceUplinkStatuses":
 		rows, err := d.c.ApplianceUplinkStatuses(ctx, q.NetworkID)
 		if err != nil {

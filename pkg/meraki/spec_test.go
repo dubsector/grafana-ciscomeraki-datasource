@@ -80,6 +80,7 @@ func TestClientMatchesSpec(t *testing.T) {
 		"SwitchPortStatuses":      func() error { _, err := c.SwitchPortStatuses(ctx, "Q2XX-XXXX-XXXX"); return err },
 		"ApplianceUplinkStatuses": func() error { _, err := c.ApplianceUplinkStatuses(ctx, "N_1"); return err },
 		"VPNStats":                func() error { _, err := c.VPNStats(ctx, t0, t1, "N_1"); return err },
+		"ApplianceLANPorts":       func() error { _, err := c.ApplianceLANPorts(ctx, "N_1"); return err },
 	}
 
 	ct := reflect.TypeOf(c)

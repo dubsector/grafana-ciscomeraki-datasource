@@ -197,6 +197,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     deviceAvailabilities:   'Showing a live snapshot — enable Historical Data to use the time range picker.',
     applianceUplinkStatuses:'Live WAN uplink snapshot. Time range has no effect.',
     switchPortStatuses:     'Live port state snapshot. Time range has no effect.',
+    applianceLanPorts:      'Current LAN port settings. Time range has no effect.',
     networkClients:         'Live client snapshot. Time range has no effect.',
     deviceClients:          'Live client snapshot. Time range has no effect.',
   };
