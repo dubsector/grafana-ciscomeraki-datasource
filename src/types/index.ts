@@ -5,6 +5,7 @@ import { DataQuery, DataSourceJsonData } from '@grafana/schema';
 
 export type QueryType =
   | 'deviceAvailabilities'
+  | 'deviceStatuses'
   | 'networkEvents'
   | 'securityEvents'
   | 'networkClients'
@@ -25,6 +26,7 @@ export interface QueryTypeOption {
 
 export const QUERY_TYPE_OPTIONS: QueryTypeOption[] = [
   { value: 'deviceAvailabilities',     label: 'Device Availabilities',      description: 'Live device online/offline status' },
+  { value: 'deviceStatuses',           label: 'Device Statuses',             description: 'Live status with model, LAN IP and gateway' },
   { value: 'networkEvents',            label: 'Network Events',              description: 'DHCP, 802.11, VPN event logs' },
   { value: 'securityEvents',           label: 'Security Events',             description: 'IDS/IPS and appliance security alerts' },
   { value: 'networkClients',           label: 'Network Clients',             description: 'Clients seen on a network' },
@@ -41,6 +43,7 @@ export const QUERY_TYPE_OPTIONS: QueryTypeOption[] = [
 // Query types that are live snapshots (time range has no effect)
 export const LIVE_QUERY_TYPES: QueryType[] = [
   'deviceAvailabilities',
+  'deviceStatuses',
   'networkClients',
   'deviceClients',
   'switchPortStatuses',
@@ -63,6 +66,7 @@ export const NEEDS_NETWORK: QueryType[] = [
 // Query types that can be narrowed to a network but default to the whole org
 export const OPTIONAL_NETWORK: QueryType[] = [
   'deviceAvailabilities',
+  'deviceStatuses',
   'applianceUplinkStatuses',
   'vpnStats',
 ];

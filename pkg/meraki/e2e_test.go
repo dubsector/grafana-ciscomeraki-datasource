@@ -170,6 +170,9 @@ func TestE2E(t *testing.T) {
 					return c.DeviceAvailabilities(ctx, pt, "")
 				})
 			}
+			run("DeviceStatuses", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.DeviceStatuses(ctx, "", "")
+			})
 			run("DeviceAvailabilityHistory", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 				return c.DeviceAvailabilityHistory(ctx, week0, now, "", "")
 			})
@@ -203,6 +206,20 @@ func TestE2E(t *testing.T) {
 						}
 						if json.Unmarshal(a, &row) == nil && row.Network.ID != n.ID {
 							t.Errorf("DeviceAvailabilities: got network %s, want %s", row.Network.ID, n.ID)
+						}
+					}
+					statuses := run("DeviceStatuses", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+						return c.DeviceStatuses(ctx, "", n.ID)
+					})
+					if len(statuses) != len(avail) {
+						t.Errorf("DeviceStatuses: %d devices, availabilities has %d", len(statuses), len(avail))
+					}
+					for _, s := range statuses {
+						var row struct {
+							NetworkID string `json:"networkId"`
+						}
+						if json.Unmarshal(s, &row) == nil && row.NetworkID != n.ID {
+							t.Errorf("DeviceStatuses: got network %s, want %s", row.NetworkID, n.ID)
 						}
 					}
 					for _, pt := range n.ProductTypes {

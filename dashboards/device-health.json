@@ -53,14 +53,14 @@
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
-        "queryType": "deviceAvailabilities", "networkId": "", "deviceSerial": "",
+        "queryType": "deviceStatuses", "networkId": "", "deviceSerial": "",
         "productType": "", "historical": false
       }],
       "transformations": [
-        { "id": "filterFieldsByName", "options": { "include": { "names": ["name", "status", "network.name", "productType", "serial", "mac", "tags"] } } },
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["name", "status", "networkName", "productType", "model", "lanIp", "publicIp", "serial", "mac", "tags"] } } },
         { "id": "organize", "options": {
-          "indexByName": { "name": 0, "status": 1, "network.name": 2, "productType": 3, "serial": 4, "mac": 5, "tags": 6 },
-          "renameByName": { "name": "Name", "status": "Status", "network.name": "Network", "productType": "Product", "serial": "Serial", "mac": "MAC", "tags": "Tags" }
+          "indexByName": { "name": 0, "status": 1, "networkName": 2, "productType": 3, "model": 4, "lanIp": 5, "publicIp": 6, "serial": 7, "mac": 8, "tags": 9 },
+          "renameByName": { "name": "Name", "status": "Status", "networkName": "Network", "productType": "Product", "model": "Model", "lanIp": "LAN IP", "publicIp": "Public IP", "serial": "Serial", "mac": "MAC", "tags": "Tags" }
         }}
       ],
       "options": { "sortBy": [{ "displayName": "Status", "desc": false }] },
