@@ -167,17 +167,17 @@ func TestE2E(t *testing.T) {
 			}
 			for _, pt := range products {
 				run("DeviceAvailabilities", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
-					return c.DeviceAvailabilities(ctx, pt)
+					return c.DeviceAvailabilities(ctx, pt, "")
 				})
 			}
 			run("DeviceAvailabilityHistory", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
-				return c.DeviceAvailabilityHistory(ctx, week0, now, "")
+				return c.DeviceAvailabilityHistory(ctx, week0, now, "", "")
 			})
 			run("ApplianceUplinkStatuses", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 				return c.ApplianceUplinkStatuses(ctx, "")
 			})
 			run("VPNStats", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
-				return c.VPNStats(ctx, day0, now)
+				return c.VPNStats(ctx, day0, now, "")
 			})
 
 			for _, n := range nets {
@@ -189,6 +189,22 @@ func TestE2E(t *testing.T) {
 					run("NetworkClients", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 						return c.NetworkClients(ctx, n.ID)
 					})
+					avail := run("DeviceAvailabilities", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+						return c.DeviceAvailabilities(ctx, "", n.ID)
+					})
+					if len(avail) == 0 {
+						t.Error("DeviceAvailabilities: no devices in the network")
+					}
+					for _, a := range avail {
+						var row struct {
+							Network struct {
+								ID string `json:"id"`
+							} `json:"network"`
+						}
+						if json.Unmarshal(a, &row) == nil && row.Network.ID != n.ID {
+							t.Errorf("DeviceAvailabilities: got network %s, want %s", row.Network.ID, n.ID)
+						}
+					}
 					for _, pt := range n.ProductTypes {
 						events := run("NetworkEvents", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 							return c.NetworkEvents(ctx, n.ID, pt, day0, now)
@@ -205,12 +221,17 @@ func TestE2E(t *testing.T) {
 						if len(uplinks) == 0 {
 							t.Error("ApplianceUplinkStatuses: no appliance in a network with one")
 						}
-						for _, u := range uplinks {
-							var row struct {
-								NetworkID string `json:"networkId"`
-							}
-							if json.Unmarshal(u, &row) == nil && row.NetworkID != n.ID {
-								t.Errorf("ApplianceUplinkStatuses: got network %s, want %s", row.NetworkID, n.ID)
+						vpn := run("VPNStats", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+							return c.VPNStats(ctx, day0, now, n.ID)
+						})
+						for method, rows := range map[string][]json.RawMessage{"ApplianceUplinkStatuses": uplinks, "VPNStats": vpn} {
+							for _, r := range rows {
+								var row struct {
+									NetworkID string `json:"networkId"`
+								}
+								if json.Unmarshal(r, &row) == nil && row.NetworkID != n.ID {
+									t.Errorf("%s: got network %s, want %s", method, row.NetworkID, n.ID)
+								}
 							}
 						}
 					}

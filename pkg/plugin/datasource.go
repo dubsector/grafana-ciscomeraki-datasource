@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -168,9 +169,9 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 	switch q.QueryType {
 	case "deviceAvailabilities":
 		if q.Historical {
-			return d.c.DeviceAvailabilityHistory(ctx, t0, t1, q.ProductType)
+			return d.c.DeviceAvailabilityHistory(ctx, t0, t1, q.ProductType, q.NetworkID)
 		}
-		return d.c.DeviceAvailabilities(ctx, q.ProductType)
+		return d.c.DeviceAvailabilities(ctx, q.ProductType, q.NetworkID)
 	case "networkEvents":
 		if q.NetworkID == "" {
 			return nil, fmt.Errorf("networkId required for networkEvents")
@@ -218,7 +219,11 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 		}
 		return explode(rows, "uplinks"), nil
 	case "vpnStats":
-		return d.c.VPNStats(ctx, t0, t1)
+		rows, err := d.c.VPNStats(ctx, t0, t1, q.NetworkID)
+		if err != nil {
+			return nil, err
+		}
+		return vpnPeerRows(rows), nil
 	default:
 		return nil, fmt.Errorf("unknown queryType: %s", q.QueryType)
 	}
@@ -296,6 +301,87 @@ func explode(rows []json.RawMessage, field string) []json.RawMessage {
 		}
 	}
 	return out
+}
+
+// vpnPeerRows gives each network, Meraki VPN peer and uplink pair its own
+// row, joining the latency, loss, jitter and MOS summaries on the pair.
+func vpnPeerRows(rows []json.RawMessage) []json.RawMessage {
+	type peer struct {
+		NetworkID   string `json:"networkId"`
+		NetworkName string `json:"networkName"`
+		Usage       struct {
+			Sent     *float64 `json:"sentInKilobytes"`
+			Received *float64 `json:"receivedInKilobytes"`
+		} `json:"usageSummary"`
+		Latency []map[string]interface{} `json:"latencySummaries"`
+		Loss    []map[string]interface{} `json:"lossPercentageSummaries"`
+		Jitter  []map[string]interface{} `json:"jitterSummaries"`
+		MOS     []map[string]interface{} `json:"mosSummaries"`
+	}
+	var out []json.RawMessage
+	for _, raw := range rows {
+		var s struct {
+			NetworkID   string `json:"networkId"`
+			NetworkName string `json:"networkName"`
+			Peers       []peer `json:"merakiVpnPeers"`
+		}
+		if json.Unmarshal(raw, &s) != nil {
+			continue
+		}
+		for _, p := range s.Peers {
+			var order []string
+			pairs := map[string]map[string]interface{}{}
+			for _, list := range [][]map[string]interface{}{p.Latency, p.Loss, p.Jitter, p.MOS} {
+				for _, m := range list {
+					key := fmt.Sprint(m["senderUplink"], "|", m["receiverUplink"])
+					if pairs[key] == nil {
+						pairs[key] = map[string]interface{}{}
+						order = append(order, key)
+					}
+					maps.Copy(pairs[key], m)
+				}
+			}
+			if len(order) == 0 {
+				order, pairs[""] = []string{""}, map[string]interface{}{}
+			}
+			for _, key := range order {
+				m := pairs[key]
+				m["networkName"], m["networkId"] = s.NetworkName, s.NetworkID
+				m["peerNetworkName"], m["peerNetworkId"] = p.NetworkName, p.NetworkID
+				m["sentInKilobytes"], m["receivedInKilobytes"] = p.Usage.Sent, p.Usage.Received
+				out = append(out, jsonInOrder(m, vpnColumns))
+			}
+		}
+	}
+	return out
+}
+
+var vpnColumns = []string{
+	"networkName", "peerNetworkName", "senderUplink", "receiverUplink", "sentInKilobytes", "receivedInKilobytes",
+	"avgLatencyMs", "minLatencyMs", "maxLatencyMs", "avgLossPercentage", "minLossPercentage", "maxLossPercentage",
+	"avgJitter", "minJitter", "maxJitter", "avgMos", "minMos", "maxMos", "networkId", "peerNetworkId",
+}
+
+// jsonInOrder encodes m with the keys in first leading, then the rest sorted.
+func jsonInOrder(m map[string]interface{}, first []string) json.RawMessage {
+	var keys, rest []string
+	for _, k := range first {
+		if _, ok := m[k]; ok {
+			keys = append(keys, k)
+		}
+	}
+	for k := range m {
+		if !slices.Contains(first, k) {
+			rest = append(rest, k)
+		}
+	}
+	slices.Sort(rest)
+	keys = append(keys, rest...)
+	vals := make([]json.RawMessage, len(keys))
+	for i, k := range keys {
+		vals[i], _ = json.Marshal(m[k])
+	}
+	return encodeObject(keys, vals)
 }
 
 // orderedObject splits a JSON object into its keys and raw values, in order.

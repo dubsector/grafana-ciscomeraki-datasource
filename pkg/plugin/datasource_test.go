@@ -148,6 +148,30 @@ func TestExplodeGivesEachUplinkARow(t *testing.T) {
 	}
 }
 
+func TestVPNPeerRowsJoinSummariesPerUplinkPair(t *testing.T) {
+	t.Parallel()
+	rows := vpnPeerRows([]json.RawMessage{
+		json.RawMessage(`{"networkId":"N_1","networkName":"London","merakiVpnPeers":[{"networkId":"N_2","networkName":"HQ",
+			"usageSummary":{"receivedInKilobytes":20,"sentInKilobytes":10},
+			"latencySummaries":[{"senderUplink":"wan1","receiverUplink":"wan1","avgLatencyMs":150},{"senderUplink":"wan2","receiverUplink":"wan1","avgLatencyMs":90}],
+			"lossPercentageSummaries":[{"senderUplink":"wan1","receiverUplink":"wan1","avgLossPercentage":0.5}]}]}`),
+		json.RawMessage(`{"networkId":"N_3","networkName":"Lonely","merakiVpnPeers":[]}`),
+	})
+
+	want := []string{
+		`{"networkName":"London","peerNetworkName":"HQ","senderUplink":"wan1","receiverUplink":"wan1","sentInKilobytes":10,"receivedInKilobytes":20,"avgLatencyMs":150,"avgLossPercentage":0.5,"networkId":"N_1","peerNetworkId":"N_2"}`,
+		`{"networkName":"London","peerNetworkName":"HQ","senderUplink":"wan2","receiverUplink":"wan1","sentInKilobytes":10,"receivedInKilobytes":20,"avgLatencyMs":90,"networkId":"N_1","peerNetworkId":"N_2"}`,
+	}
+	if len(rows) != len(want) {
+		t.Fatalf("got %d rows, want %d: %s", len(rows), len(want), rows)
+	}
+	for i := range want {
+		if string(rows[i]) != want[i] {
+			t.Errorf("row %d =\n%s\nwant\n%s", i, rows[i], want[i])
+		}
+	}
+}
+
 func TestBuildFrameShowsListsAsText(t *testing.T) {
 	t.Parallel()
 	frame, err := buildFrame("t", []json.RawMessage{

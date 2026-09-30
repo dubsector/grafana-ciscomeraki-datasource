@@ -7,10 +7,10 @@
     { "type": "panel", "id": "text",  "name": "Text",  "version": "" }
   ],
   "title": "Meraki - Infrastructure",
-  "description": "Switch ports and appliance WAN uplinks for one network.",
+  "description": "Switch ports, WAN uplinks and Meraki VPN peers for one network.",
   "tags": ["meraki"],
   "editable": true,
-  "time": { "from": "now-1h", "to": "now" },
+  "time": { "from": "now-24h", "to": "now" },
   "timepicker": {},
   "refresh": "1m",
   "panels": [
@@ -18,7 +18,7 @@
       "id": 1, "type": "text", "title": "",
       "gridPos": { "x": 0, "y": 0, "w": 24, "h": 2 },
       "transparent": true,
-      "options": { "mode": "markdown", "content": "Live data for the selected network. The time range has no effect here." }
+      "options": { "mode": "markdown", "content": "Ports and uplinks are live. VPN stats cover the selected time range." }
     },
     {
       "id": 2, "type": "row", "title": "Switch Ports",
@@ -121,6 +121,68 @@
                 "failed":        { "color": "red" },
                 "not connected": { "color": "#8e8e8e" }
               }}]}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 6, "type": "row", "title": "Site-to-Site VPN",
+      "gridPos": { "x": 0, "y": 23, "w": 24, "h": 1 }, "panels": []
+    },
+    {
+      "id": 7, "type": "table", "title": "Meraki VPN peers",
+      "description": "Traffic and link quality to each Meraki VPN peer over the selected time range, per uplink pair.",
+      "gridPos": { "x": 0, "y": 24, "w": 24, "h": 8 },
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "targets": [{
+        "refId": "A",
+        "queryType": "vpnStats",
+        "networkId": "${network}", "deviceSerial": "", "productType": "", "historical": false
+      }],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": [
+          "peerNetworkName", "senderUplink", "receiverUplink", "sentInKilobytes", "receivedInKilobytes",
+          "avgLatencyMs", "maxLatencyMs", "avgLossPercentage", "maxLossPercentage", "avgJitter", "avgMos"
+        ]}}},
+        { "id": "organize", "options": {
+          "indexByName": {
+            "peerNetworkName": 0, "senderUplink": 1, "receiverUplink": 2, "sentInKilobytes": 3, "receivedInKilobytes": 4,
+            "avgLatencyMs": 5, "maxLatencyMs": 6, "avgLossPercentage": 7, "maxLossPercentage": 8, "avgJitter": 9, "avgMos": 10
+          },
+          "renameByName": {
+            "peerNetworkName": "Peer", "senderUplink": "Local uplink", "receiverUplink": "Peer uplink",
+            "sentInKilobytes": "Sent", "receivedInKilobytes": "Received",
+            "avgLatencyMs": "Latency (avg)", "maxLatencyMs": "Latency (max)",
+            "avgLossPercentage": "Loss (avg)", "maxLossPercentage": "Loss (max)",
+            "avgJitter": "Jitter (avg)", "avgMos": "MOS (avg)"
+          }
+        }}
+      ],
+      "fieldConfig": {
+        "defaults": { "noValue": "No Meraki VPN peers for this network", "custom": { "filterable": true } },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*" }, "properties": [{ "id": "noValue", "value": "" }] },
+          { "matcher": { "id": "byRegexp", "options": "^(Sent|Received)$" }, "properties": [{ "id": "unit", "value": "deckbytes" }] },
+          { "matcher": { "id": "byRegexp", "options": "^(Latency|Jitter)" }, "properties": [{ "id": "unit", "value": "ms" }, { "id": "decimals", "value": 1 }] },
+          { "matcher": { "id": "byRegexp", "options": "^Loss" },
+            "properties": [
+              { "id": "unit", "value": "percent" }, { "id": "decimals", "value": 2 },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "color", "value": { "mode": "thresholds" } },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                { "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 5 }
+              ]}}
+            ]
+          },
+          { "matcher": { "id": "byName", "options": "MOS (avg)" },
+            "properties": [
+              { "id": "decimals", "value": 1 },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "color", "value": { "mode": "thresholds" } },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                { "color": "red", "value": null }, { "color": "orange", "value": 3.5 }, { "color": "green", "value": 4 }
+              ]}}
             ]
           }
         ]

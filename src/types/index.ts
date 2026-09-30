@@ -58,7 +58,9 @@ export const NEEDS_NETWORK: QueryType[] = [
 
 // Query types that can be narrowed to a network but default to the whole org
 export const OPTIONAL_NETWORK: QueryType[] = [
+  'deviceAvailabilities',
   'applianceUplinkStatuses',
+  'vpnStats',
 ];
 
 // Query types that need a device serial selected
@@ -81,6 +83,7 @@ export const NETWORK_PRODUCT_FILTER: Partial<Record<QueryType, string[]>> = {
   securityEvents:          ['appliance'],
   switchPortStatuses:      ['switch'],
   applianceUplinkStatuses: ['appliance'],
+  vpnStats:                ['appliance'],
   networkClients:          ['wireless', 'appliance', 'switch', 'cellularGateway'],
   wirelessLatencyStats:    ['wireless'],
   wirelessConnectionStats: ['wireless'],
