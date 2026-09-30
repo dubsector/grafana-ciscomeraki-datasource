@@ -26,9 +26,9 @@
       "targets": [{
         "refId": "A",
         "queryType": "networkEvents", "networkId": "${network}",
-        "productType": "", "deviceSerial": "", "historical": false
+        "productType": "${product_type}", "deviceSerial": "", "historical": false
       }],
-      "options": { "reduceOptions": { "calcs": ["count"], "fields": "/^Event Type$/" }, "colorMode": "background", "graphMode": "none" },
+      "options": { "reduceOptions": { "calcs": ["count"], "fields": "/^type$/" }, "colorMode": "background", "graphMode": "none" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" },
         "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
       }, "overrides": [] }
@@ -40,7 +40,7 @@
       "targets": [{
         "refId": "A",
         "queryType": "networkEvents", "networkId": "${network}",
-        "productType": "", "deviceSerial": "", "historical": false
+        "productType": "${product_type}", "deviceSerial": "", "historical": false
       }],
       "options": { "sortBy": [{ "displayName": "occurredAt", "desc": true }] },
       "fieldConfig": { "defaults": { "custom": { "filterable": true } }, "overrides": [] }
@@ -68,6 +68,12 @@
       "name": "network", "type": "query", "label": "Network",
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "query": "{\"queryType\":\"networkEvents\"}",
+      "refresh": 2, "sort": 1, "hide": 0
+    },
+    {
+      "name": "product_type", "type": "query", "label": "Product",
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "query": "{\"queryType\":\"eventProductTypes\",\"networkId\":\"${network}\"}",
       "refresh": 2, "sort": 1, "hide": 0
     }
   ]},

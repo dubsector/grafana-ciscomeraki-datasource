@@ -8,7 +8,7 @@
     { "type": "panel", "id": "table",      "name": "Table",       "version": "" }
   ],
   "title": "Meraki - Wireless",
-  "description": "Wireless client counts, latency, connection stats, and VPN.",
+  "description": "Access points, clients, latency and connection success for one wireless network.",
   "tags": ["meraki", "wireless"],
   "editable": true,
   "graphTooltip": 0,
@@ -17,12 +17,79 @@
   "refresh": "5m",
   "panels": [
     {
-      "id": 1, "type": "row", "title": "Client Count",
+      "id": 1, "type": "row", "title": "Access Points",
       "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "panels": []
     },
     {
-      "id": 2, "type": "timeseries", "title": "Wireless Client Count Over Time",
-      "gridPos": { "x": 0, "y": 1, "w": 24, "h": 8 },
+      "id": 2, "type": "stat", "title": "APs online",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 8 },
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "targets": [{
+        "refId": "A",
+        "queryType": "deviceAvailabilities", "networkId": "${network}",
+        "productType": "wireless", "deviceSerial": "", "historical": false
+      }],
+      "transformations": [{
+        "id": "filterByValue",
+        "options": { "type": "include", "match": "any", "filters": [
+          { "fieldName": "status", "config": { "id": "equal", "options": { "value": "online" } } }
+        ]}
+      }],
+      "options": { "reduceOptions": { "calcs": ["count"], "fields": "/^serial$/" }, "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "none",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "green", "value": 1 }
+          ]}
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3, "type": "table", "title": "Access Points",
+      "gridPos": { "x": 4, "y": 1, "w": 20, "h": 8 },
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "targets": [{
+        "refId": "A",
+        "queryType": "deviceAvailabilities", "networkId": "${network}",
+        "productType": "wireless", "deviceSerial": "", "historical": false
+      }],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["name", "status", "serial", "mac", "tags"] } } },
+        { "id": "organize", "options": {
+          "indexByName": { "name": 0, "status": 1, "serial": 2, "mac": 3, "tags": 4 },
+          "renameByName": { "name": "Name", "status": "Status", "serial": "Serial", "mac": "MAC", "tags": "Tags" }
+        }}
+      ],
+      "options": { "sortBy": [{ "displayName": "Status", "desc": false }] },
+      "fieldConfig": {
+        "defaults": { "noValue": "No access points in this network", "custom": { "filterable": true } },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*" }, "properties": [{ "id": "noValue", "value": "" }] },
+          { "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "mappings", "value": [{ "type": "value", "options": {
+                "online":   { "text": "Online",   "color": "green"  },
+                "offline":  { "text": "Offline",  "color": "red"    },
+                "alerting": { "text": "Alerting", "color": "orange" },
+                "dormant":  { "text": "Dormant",  "color": "blue"   }
+              }}]}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 4, "type": "row", "title": "Clients",
+      "gridPos": { "x": 0, "y": 9, "w": 24, "h": 1 }, "panels": []
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Wireless clients",
+      "gridPos": { "x": 0, "y": 10, "w": 24, "h": 8 },
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
@@ -31,55 +98,86 @@
       }],
       "fieldConfig": {
         "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineInterpolation": "smooth" } },
-        "overrides": []
+        "overrides": [{ "matcher": { "id": "byName", "options": "clientCount" }, "properties": [{ "id": "displayName", "value": "Clients" }] }]
       },
       "options": { "tooltip": { "mode": "multi" } }
     },
     {
-      "id": 3, "type": "row", "title": "Latency",
-      "gridPos": { "x": 0, "y": 9, "w": 24, "h": 1 }, "panels": []
+      "id": 6, "type": "row", "title": "Latency",
+      "gridPos": { "x": 0, "y": 18, "w": 24, "h": 1 }, "panels": []
     },
     {
-      "id": 4, "type": "stat", "title": "Background Latency (avg ms)",
-      "gridPos": { "x": 0, "y": 10, "w": 6, "h": 4 },
+      "id": 7, "type": "stat", "title": "Background Latency (avg ms)",
+      "gridPos": { "x": 0, "y": 19, "w": 12, "h": 4 },
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{ "refId": "A", "queryType": "wirelessLatencyStats", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
-      "options": { "reduceOptions": { "calcs": ["mean"], "fields": "/backgroundTraffic/" } },
+      "options": { "reduceOptions": { "calcs": ["mean"], "fields": "/^backgroundTraffic\\.avg$/" } },
       "fieldConfig": { "defaults": { "unit": "ms", "color": { "mode": "thresholds" },
         "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 150 }] }
       }, "overrides": [] }
     },
     {
-      "id": 5, "type": "stat", "title": "Best Effort Latency (avg ms)",
-      "gridPos": { "x": 6, "y": 10, "w": 6, "h": 4 },
+      "id": 8, "type": "stat", "title": "Best Effort Latency (avg ms)",
+      "gridPos": { "x": 12, "y": 19, "w": 12, "h": 4 },
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{ "refId": "A", "queryType": "wirelessLatencyStats", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
-      "options": { "reduceOptions": { "calcs": ["mean"], "fields": "/bestEffortTraffic/" } },
+      "options": { "reduceOptions": { "calcs": ["mean"], "fields": "/^bestEffortTraffic\\.avg$/" } },
       "fieldConfig": { "defaults": { "unit": "ms", "color": { "mode": "thresholds" },
         "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 150 }] }
       }, "overrides": [] }
     },
     {
-      "id": 6, "type": "row", "title": "Connection Stats",
-      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 1 }, "panels": []
-    },
-    {
-      "id": 7, "type": "table", "title": "Connection Stats",
-      "gridPos": { "x": 0, "y": 15, "w": 24, "h": 8 },
-      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
-      "targets": [{ "refId": "A", "queryType": "wirelessConnectionStats", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
-      "fieldConfig": { "defaults": { "custom": { "filterable": true } }, "overrides": [] }
-    },
-    {
-      "id": 8, "type": "row", "title": "VPN",
+      "id": 9, "type": "row", "title": "Connections",
       "gridPos": { "x": 0, "y": 23, "w": 24, "h": 1 }, "panels": []
     },
     {
-      "id": 9, "type": "table", "title": "Site-to-Site VPN Stats",
-      "gridPos": { "x": 0, "y": 24, "w": 24, "h": 8 },
+      "id": 10, "type": "stat", "title": "Client connection attempts",
+      "description": "Connection attempts in the time range. Failed attempts are counted at the stage where they stopped.",
+      "gridPos": { "x": 0, "y": 24, "w": 24, "h": 5 },
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
-      "targets": [{ "refId": "A", "queryType": "vpnStats", "networkId": "", "productType": "", "deviceSerial": "", "historical": false }],
-      "fieldConfig": { "defaults": { "custom": { "filterable": true } }, "overrides": [] }
+      "targets": [{ "refId": "A", "queryType": "wirelessConnectionStats", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
+      "transformations": [
+        { "id": "calculateField", "options": {
+          "mode": "reduceRow", "reduce": { "reducer": "sum", "include": ["assoc", "auth", "dhcp", "dns", "success"] },
+          "alias": "attempts"
+        }},
+        { "id": "calculateField", "options": {
+          "mode": "binary", "binary": { "left": "success", "operator": "/", "right": "attempts" },
+          "alias": "successRate"
+        }},
+        { "id": "organize", "options": {
+          "excludeByName": { "attempts": true },
+          "indexByName": { "successRate": 0, "success": 1, "assoc": 2, "auth": 3, "dhcp": 4, "dns": 5 },
+          "renameByName": {
+            "successRate": "Success rate", "success": "Connected", "assoc": "Failed at association",
+            "auth": "Failed at authentication", "dhcp": "Failed at DHCP", "dns": "Failed at DNS"
+          }
+        }}
+      ],
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "textMode": "value_and_name", "colorMode": "value", "graphMode": "none", "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none", "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }] }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Success rate" },
+            "properties": [
+              { "id": "unit", "value": "percentunit" }, { "id": "decimals", "value": 1 },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                { "color": "red", "value": null }, { "color": "orange", "value": 0.9 }, { "color": "green", "value": 0.97 }
+              ]}}
+            ]
+          },
+          { "matcher": { "id": "byName", "options": "Connected" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }]
+          }
+        ]
+      }
     }
   ],
   "templating": { "list": [
@@ -88,7 +186,7 @@
       "name": "network", "type": "query", "label": "Network",
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "query": "{\"queryType\":\"wirelessClientCount\"}",
-      "refresh": 2, "sort": 1, "hide": 0
+      "refresh": 1, "sort": 1, "hide": 0
     }
   ]},
   "annotations": { "list": [] },
