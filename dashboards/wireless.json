@@ -54,14 +54,14 @@
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
-        "queryType": "deviceAvailabilities", "networkId": "${network}",
+        "queryType": "deviceStatuses", "networkId": "${network}",
         "productType": "wireless", "deviceSerial": "", "historical": false
       }],
       "transformations": [
-        { "id": "filterFieldsByName", "options": { "include": { "names": ["name", "status", "serial", "mac", "tags"] } } },
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["name", "status", "model", "lanIp", "serial", "mac", "tags"] } } },
         { "id": "organize", "options": {
-          "indexByName": { "name": 0, "status": 1, "serial": 2, "mac": 3, "tags": 4 },
-          "renameByName": { "name": "Name", "status": "Status", "serial": "Serial", "mac": "MAC", "tags": "Tags" }
+          "indexByName": { "name": 0, "status": 1, "model": 2, "lanIp": 3, "serial": 4, "mac": 5, "tags": 6 },
+          "renameByName": { "name": "Name", "status": "Status", "model": "Model", "lanIp": "IP", "serial": "Serial", "mac": "MAC", "tags": "Tags" }
         }}
       ],
       "options": { "sortBy": [{ "displayName": "Status", "desc": false }] },

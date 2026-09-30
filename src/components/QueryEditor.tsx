@@ -190,11 +190,12 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
   const showDevice       = NEEDS_DEVICE.includes(qt);
   const showHistorical   = qt === 'deviceAvailabilities';
   const showEventPT      = qt === 'networkEvents';
-  const showDeviceFilter = qt === 'deviceAvailabilities';
+  const showDeviceFilter = qt === 'deviceAvailabilities' || qt === 'deviceStatuses';
   const isLive           = qt !== 'deviceAvailabilities' || !query.historical;
 
   const liveMessages: Partial<Record<QueryType, string>> = {
     deviceAvailabilities:   'Showing a live snapshot — enable Historical Data to use the time range picker.',
+    deviceStatuses:         'Live device status snapshot. Time range has no effect.',
     applianceUplinkStatuses:'Live WAN uplink snapshot. Time range has no effect.',
     switchPortStatuses:     'Live port state snapshot. Time range has no effect.',
     applianceLanPorts:      'Current LAN port settings. Time range has no effect.',

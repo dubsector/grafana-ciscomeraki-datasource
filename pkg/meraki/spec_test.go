@@ -70,6 +70,7 @@ func TestClientMatchesSpec(t *testing.T) {
 			_, err := c.DeviceAvailabilityHistory(ctx, t0, t1, "wireless", "N_1")
 			return err
 		},
+		"DeviceStatuses":          func() error { _, err := c.DeviceStatuses(ctx, "switch", "N_1"); return err },
 		"NetworkEvents":           func() error { _, err := c.NetworkEvents(ctx, "N_1", "wireless", t0, t1); return err },
 		"SecurityEvents":          func() error { _, err := c.SecurityEvents(ctx, "N_1", t0, t1); return err },
 		"NetworkClients":          func() error { _, err := c.NetworkClients(ctx, "N_1"); return err },

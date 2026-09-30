@@ -177,11 +177,15 @@ func TestWithNetworkNames(t *testing.T) {
 	rows := withNetworkNames([]json.RawMessage{
 		json.RawMessage(`{"serial":"Q2-1","network":{"id":"N_1"},"status":"online"}`),
 		json.RawMessage(`{"serial":"Q2-2","network":{"id":"N_9"},"status":"offline"}`),
+		json.RawMessage(`{"serial":"Q2-3","networkId":"N_1","status":"online"}`),
+		json.RawMessage(`{"serial":"Q2-4","networkId":"N_9","status":"online"}`),
 	}, map[string]string{"N_1": "HQ"})
 
 	want := []string{
 		`{"serial":"Q2-1","network":{"id":"N_1","name":"HQ"},"status":"online"}`,
 		`{"serial":"Q2-2","network":{"id":"N_9"},"status":"offline"}`,
+		`{"serial":"Q2-3","networkId":"N_1","networkName":"HQ","status":"online"}`,
+		`{"serial":"Q2-4","networkId":"N_9","status":"online"}`,
 	}
 	for i := range want {
 		if string(rows[i]) != want[i] {
