@@ -61,13 +61,25 @@ func (d *DS) networkNames(ctx context.Context) map[string]string {
 	return names
 }
 
-// withNetworkNames adds network.name next to network.id, since the
-// availability endpoints only return the ID.
+// withNetworkNames adds network.name next to network.id, or networkName
+// after a flat networkId, since the device endpoints only return the ID.
 func withNetworkNames(rows []json.RawMessage, names map[string]string) []json.RawMessage {
 	for i, raw := range rows {
 		keys, vals, err := orderedObject(raw)
+		if err != nil {
+			continue
+		}
+		if j := slices.Index(keys, "networkId"); j >= 0 && !slices.Contains(keys, "networkName") {
+			var id string
+			_ = json.Unmarshal(vals[j], &id)
+			if name, ok := names[id]; ok {
+				b, _ := json.Marshal(name)
+				rows[i] = encodeObject(slices.Insert(keys, j+1, "networkName"), slices.Insert(vals, j+1, json.RawMessage(b)))
+			}
+			continue
+		}
 		j := slices.Index(keys, "network")
-		if err != nil || j < 0 {
+		if j < 0 {
 			continue
 		}
 		nk, nv, err := orderedObject(vals[j])
@@ -236,6 +248,12 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 			}
 		}
 		rows, err := fetch(ctx, q.ProductType, q.NetworkID)
+		if err != nil {
+			return nil, err
+		}
+		return withNetworkNames(rows, d.networkNames(ctx)), nil
+	case "deviceStatuses":
+		rows, err := d.c.DeviceStatuses(ctx, q.ProductType, q.NetworkID)
 		if err != nil {
 			return nil, err
 		}

@@ -34,7 +34,7 @@
     }
   ],
   "title": "Meraki - Switching",
-  "description": "Live port status for every switch in a network.",
+  "description": "Switches in a network and the live ports of the selected one.",
   "tags": [
     "meraki",
     "switch"
@@ -50,11 +50,165 @@
     {
       "id": 1,
       "type": "row",
-      "title": "${switch_serial:text}",
-      "repeat": "switch_serial",
+      "title": "Switches",
       "gridPos": {
         "x": 0,
         "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Switches in this network",
+      "description": "Click a switch name to show its ports below.",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "deviceStatuses",
+          "networkId": "${network}",
+          "productType": "switch",
+          "deviceSerial": "",
+          "historical": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "name",
+                "status",
+                "model",
+                "lanIp",
+                "serial",
+                "mac"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "name": 0,
+              "status": 1,
+              "model": 2,
+              "lanIp": 3,
+              "serial": 4,
+              "mac": 5
+            },
+            "renameByName": {
+              "name": "Name",
+              "status": "Status",
+              "model": "Model",
+              "lanIp": "IP",
+              "serial": "Serial",
+              "mac": "MAC"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No switches in this network",
+          "custom": {
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "noValue",
+                "value": ""
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Name"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Show ports",
+                    "url": "/d/${__dashboard.uid}?${DS:queryparam}&${network:queryparam}&var-switch_serial=${__data.fields.serial}&${__url_time_range}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "online": {
+                        "text": "Online",
+                        "color": "green"
+                      },
+                      "offline": {
+                        "text": "Offline",
+                        "color": "red"
+                      },
+                      "alerting": {
+                        "text": "Alerting",
+                        "color": "orange"
+                      },
+                      "dormant": {
+                        "text": "Dormant",
+                        "color": "blue"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "${switch_serial:text}",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
         "w": 24,
         "h": 1
       },
@@ -66,7 +220,7 @@
       "title": "Connected ports",
       "gridPos": {
         "x": 0,
-        "y": 1,
+        "y": 9,
         "w": 6,
         "h": 4
       },
@@ -144,7 +298,7 @@
       "title": "Ports with errors",
       "gridPos": {
         "x": 6,
-        "y": 1,
+        "y": 9,
         "w": 6,
         "h": 4
       },
@@ -222,7 +376,7 @@
       "title": "Clients",
       "gridPos": {
         "x": 12,
-        "y": 1,
+        "y": 9,
         "w": 6,
         "h": 4
       },
@@ -277,7 +431,7 @@
       "title": "PoE energy",
       "gridPos": {
         "x": 18,
-        "y": 1,
+        "y": 9,
         "w": 6,
         "h": 4
       },
@@ -332,9 +486,9 @@
       "title": "Ports",
       "gridPos": {
         "x": 0,
-        "y": 5,
+        "y": 13,
         "w": 24,
-        "h": 12
+        "h": 16
       },
       "datasource": {
         "type": "dubsector-ciscomeraki-datasource",
@@ -565,17 +719,7 @@
         "query": "{\"queryType\":\"devices\",\"networkId\":\"${network}\",\"productType\":\"switch\"}",
         "refresh": 1,
         "sort": 1,
-        "hide": 0,
-        "multi": true,
-        "includeAll": true,
-        "current": {
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
-        }
+        "hide": 0
       }
     ]
   },

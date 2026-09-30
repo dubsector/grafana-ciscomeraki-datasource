@@ -7,6 +7,7 @@ A Grafana backend datasource plugin for the [Cisco Meraki Dashboard API v1](http
 | Query Type | Description |
 |---|---|
 | Device Availabilities | Live or historical device online/offline status |
+| Device Statuses | Live device status with model, LAN IP and gateway |
 | Network Events | DHCP, 802.11, VPN, and other event logs |
 | Security Events | IDS/IPS and appliance security alerts |
 | Network Clients | Clients currently seen on a network |
@@ -16,6 +17,7 @@ A Grafana backend datasource plugin for the [Cisco Meraki Dashboard API v1](http
 | Wireless Client Count | Historical client count time-series |
 | Switch Port Statuses | Live port status per switch device |
 | Appliance Uplink Statuses | Live WAN uplink status across the org |
+| Appliance LAN Ports | MX LAN port settings (VLAN, access or trunk) |
 | VPN Stats | Site-to-site VPN latency, loss, and jitter |
 
 - Template variable support: networks (optionally only those with given `productTypes`), devices (optionally filtered by `networkId` or `productType`), and `eventProductTypes` for a network's event log product types

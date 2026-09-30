@@ -169,6 +169,13 @@ func (c *Client) DeviceAvailabilityHistory(ctx context.Context, t0, t1 time.Time
 	return c.get(ctx, fmt.Sprintf("/organizations/%s/devices/availabilities/changeHistory", c.orgID), p)
 }
 
+// DeviceStatuses is the live status list; unlike availabilities it has IPs and model.
+func (c *Client) DeviceStatuses(ctx context.Context, productType, networkID string) ([]json.RawMessage, error) {
+	p := url.Values{"perPage": {"1000"}}
+	filterDevices(p, productType, networkID)
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/devices/statuses", c.orgID), p)
+}
+
 func filterDevices(p url.Values, productType, networkID string) {
 	if productType != "" {
 		p.Set("productTypes[]", productType)
