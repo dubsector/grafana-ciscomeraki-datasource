@@ -172,6 +172,24 @@ func TestVPNPeerRowsJoinSummariesPerUplinkPair(t *testing.T) {
 	}
 }
 
+func TestWithNetworkNames(t *testing.T) {
+	t.Parallel()
+	rows := withNetworkNames([]json.RawMessage{
+		json.RawMessage(`{"serial":"Q2-1","network":{"id":"N_1"},"status":"online"}`),
+		json.RawMessage(`{"serial":"Q2-2","network":{"id":"N_9"},"status":"offline"}`),
+	}, map[string]string{"N_1": "HQ"})
+
+	want := []string{
+		`{"serial":"Q2-1","network":{"id":"N_1","name":"HQ"},"status":"online"}`,
+		`{"serial":"Q2-2","network":{"id":"N_9"},"status":"offline"}`,
+	}
+	for i := range want {
+		if string(rows[i]) != want[i] {
+			t.Errorf("row %d = %s, want %s", i, rows[i], want[i])
+		}
+	}
+}
+
 func TestBuildFrameShowsListsAsText(t *testing.T) {
 	t.Parallel()
 	frame, err := buildFrame("t", []json.RawMessage{

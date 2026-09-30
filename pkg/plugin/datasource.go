@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
@@ -26,7 +27,67 @@ var (
 	_ instancemgmt.InstanceDisposer = (*DS)(nil)
 )
 
-type DS struct{ c *meraki.Client }
+type DS struct {
+	c *meraki.Client
+
+	mu       sync.Mutex
+	netNames map[string]string
+	netExp   time.Time
+}
+
+// networkNames maps network IDs to names, fetched at most once a minute.
+// A failed refresh keeps the old names rather than failing the query.
+func (d *DS) networkNames(ctx context.Context) map[string]string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.netNames != nil && time.Now().Before(d.netExp) {
+		return d.netNames
+	}
+	rows, err := d.c.Networks(ctx)
+	if err != nil {
+		return d.netNames
+	}
+	names := map[string]string{}
+	for _, r := range rows {
+		var n struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}
+		if json.Unmarshal(r, &n) == nil {
+			names[n.ID] = n.Name
+		}
+	}
+	d.netNames, d.netExp = names, time.Now().Add(time.Minute)
+	return names
+}
+
+// withNetworkNames adds network.name next to network.id, since the
+// availability endpoints only return the ID.
+func withNetworkNames(rows []json.RawMessage, names map[string]string) []json.RawMessage {
+	for i, raw := range rows {
+		keys, vals, err := orderedObject(raw)
+		j := slices.Index(keys, "network")
+		if err != nil || j < 0 {
+			continue
+		}
+		nk, nv, err := orderedObject(vals[j])
+		if err != nil || slices.Contains(nk, "name") {
+			continue
+		}
+		var id string
+		if k := slices.Index(nk, "id"); k >= 0 {
+			_ = json.Unmarshal(nv[k], &id)
+		}
+		name, ok := names[id]
+		if !ok {
+			continue
+		}
+		b, _ := json.Marshal(name)
+		vals[j] = encodeObject(append(nk, "name"), append(nv, b))
+		rows[i] = encodeObject(keys, vals)
+	}
+	return rows
+}
 
 type config struct {
 	BaseURL        string `json:"baseUrl"`
@@ -168,10 +229,17 @@ func timeWindow(q query) (meraki.Window, bool) {
 func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.RawMessage, error) {
 	switch q.QueryType {
 	case "deviceAvailabilities":
+		fetch := d.c.DeviceAvailabilities
 		if q.Historical {
-			return d.c.DeviceAvailabilityHistory(ctx, t0, t1, q.ProductType, q.NetworkID)
+			fetch = func(ctx context.Context, pt, nid string) ([]json.RawMessage, error) {
+				return d.c.DeviceAvailabilityHistory(ctx, t0, t1, pt, nid)
+			}
 		}
-		return d.c.DeviceAvailabilities(ctx, q.ProductType, q.NetworkID)
+		rows, err := fetch(ctx, q.ProductType, q.NetworkID)
+		if err != nil {
+			return nil, err
+		}
+		return withNetworkNames(rows, d.networkNames(ctx)), nil
 	case "networkEvents":
 		if q.NetworkID == "" {
 			return nil, fmt.Errorf("networkId required for networkEvents")
