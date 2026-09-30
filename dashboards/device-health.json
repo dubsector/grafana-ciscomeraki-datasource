@@ -28,17 +28,22 @@
         "queryType": "deviceAvailabilities", "networkId": "", "deviceSerial": "",
         "productType": "", "historical": false
       }],
-      "options": { "reduceOptions": { "calcs": ["count"], "fields": "/^Serial$/" }, "colorMode": "value", "graphMode": "none" },
+      "transformations": [{
+        "id": "filterByValue",
+        "options": { "type": "include", "match": "any", "filters": [
+          { "fieldName": "status", "config": { "id": "equal", "options": { "value": "online" } } }
+        ]}
+      }],
+      "options": { "reduceOptions": { "calcs": ["count"], "fields": "/^serial$/" }, "colorMode": "value", "graphMode": "none" },
       "fieldConfig": {
         "defaults": {
+          "noValue": "0",
           "color": { "mode": "thresholds" },
           "thresholds": { "mode": "absolute", "steps": [
             { "color": "red", "value": null }, { "color": "green", "value": 1 }
           ]}
         },
-        "overrides": [{ "matcher": { "id": "byName", "options": "Serial" },
-          "properties": [{ "id": "mappings", "value": [{ "type": "value", "options": { "online": { "color": "green" } } }] }]
-        }]
+        "overrides": []
       }
     },
     {
@@ -50,7 +55,7 @@
         "queryType": "deviceAvailabilities", "networkId": "", "deviceSerial": "",
         "productType": "", "historical": false
       }],
-      "options": { "sortBy": [{ "displayName": "Status", "desc": false }] },
+      "options": { "sortBy": [{ "displayName": "status", "desc": false }] },
       "fieldConfig": {
         "defaults": { "custom": { "filterable": true } },
         "overrides": [

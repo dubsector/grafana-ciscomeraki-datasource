@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,7 +27,25 @@ type DS struct{ c *meraki.Client }
 
 type config struct {
 	BaseURL        string `json:"baseUrl"`
-	OrganizationID string `json:"organizationId"`
+	OrganizationID orgID  `json:"organizationId"`
+}
+
+// orgID also accepts a number. Provisioning files often hold the org ID
+// unquoted, and Grafana turns numeric env vars into numbers.
+type orgID string
+
+func (o *orgID) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err == nil {
+		*o = orgID(s)
+		return nil
+	}
+	var n json.Number
+	if err := json.Unmarshal(b, &n); err != nil {
+		return fmt.Errorf("organizationId must be a string or a number, got %s", b)
+	}
+	*o = orgID(n.String())
+	return nil
 }
 
 func NewDS(_ context.Context, s backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
@@ -34,7 +53,7 @@ func NewDS(_ context.Context, s backend.DataSourceInstanceSettings) (instancemgm
 	if err := json.Unmarshal(s.JSONData, &cfg); err != nil {
 		return nil, fmt.Errorf("config: %w", err)
 	}
-	return &DS{c: meraki.New(cfg.BaseURL, cfg.OrganizationID, s.DecryptedSecureJSONData["apiKey"])}, nil
+	return &DS{c: meraki.New(cfg.BaseURL, string(cfg.OrganizationID), s.DecryptedSecureJSONData["apiKey"])}, nil
 }
 
 func (d *DS) Dispose() {}
@@ -212,18 +231,19 @@ func buildFrame(name string, rows []json.RawMessage) (*data.Frame, error) {
 		return frame, nil
 	}
 
+	// Columns follow the API's field order, so they don't reshuffle per request.
 	var keys []string
 	seen := map[string]bool{}
 	maps := make([]map[string]interface{}, 0, len(rows))
 
 	for _, raw := range rows {
-		var obj map[string]interface{}
-		if err := json.Unmarshal(raw, &obj); err != nil {
+		var rowKeys []string
+		flat := map[string]interface{}{}
+		if err := flatten(raw, "", &rowKeys, flat); err != nil {
 			continue
 		}
-		flat := flatObj(obj, "")
 		maps = append(maps, flat)
-		for k := range flat {
+		for _, k := range rowKeys {
 			if !seen[k] {
 				seen[k] = true
 				keys = append(keys, k)
@@ -246,22 +266,41 @@ func buildFrame(name string, rows []json.RawMessage) (*data.Frame, error) {
 	return frame, nil
 }
 
-func flatObj(m map[string]interface{}, prefix string) map[string]interface{} {
-	out := map[string]interface{}{}
-	for k, v := range m {
-		key := k
-		if prefix != "" {
-			key = prefix + "." + k
-		}
-		if child, ok := v.(map[string]interface{}); ok {
-			for ck, cv := range flatObj(child, key) {
-				out[ck] = cv
-			}
-		} else {
-			out[key] = v
-		}
+// flatten walks a JSON object in source order, joining nested keys with dots.
+func flatten(raw json.RawMessage, prefix string, keys *[]string, out map[string]interface{}) error {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
+		return fmt.Errorf("not a JSON object")
 	}
-	return out
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		key, _ := tok.(string)
+		if prefix != "" {
+			key = prefix + "." + key
+		}
+		var v json.RawMessage
+		if err := dec.Decode(&v); err != nil {
+			return err
+		}
+		if bytes.HasPrefix(bytes.TrimSpace(v), []byte("{")) {
+			if err := flatten(v, key, keys, out); err != nil {
+				return err
+			}
+			continue
+		}
+		var leaf interface{}
+		if err := json.Unmarshal(v, &leaf); err != nil {
+			return err
+		}
+		if _, dup := out[key]; !dup {
+			*keys = append(*keys, key)
+		}
+		out[key] = leaf
+	}
+	return nil
 }
 
 func makeField(name string, vals []interface{}) *data.Field {

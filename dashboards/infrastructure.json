@@ -68,7 +68,7 @@
     {
       "name": "switch_serial", "type": "query", "label": "Switch",
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
-      "query": "{\"queryType\":\"devices\"}",
+      "query": "{\"queryType\":\"devices\",\"productType\":\"switch\"}",
       "refresh": 2, "sort": 1, "hide": 0
     }
   ]},

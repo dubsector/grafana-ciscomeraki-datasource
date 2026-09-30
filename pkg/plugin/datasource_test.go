@@ -2,8 +2,10 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -73,6 +75,54 @@ func TestRunLeavesShortRangeAlone(t *testing.T) {
 	}
 	if meta := resp.Frames[0].Meta; meta != nil && len(meta.Notices) > 0 {
 		t.Errorf("unexpected notices: %+v", meta.Notices)
+	}
+}
+
+func TestConfigAcceptsStringOrNumberOrgID(t *testing.T) {
+	t.Parallel()
+	for js, want := range map[string]orgID{
+		`{"organizationId":"613605"}`:            "613605",
+		`{"organizationId":613605}`:              "613605",
+		`{"organizationId":1234567890123456789}`: "1234567890123456789",
+	} {
+		var cfg config
+		if err := json.Unmarshal([]byte(js), &cfg); err != nil {
+			t.Errorf("%s: %v", js, err)
+		} else if cfg.OrganizationID != want {
+			t.Errorf("%s: got %q, want %q", js, cfg.OrganizationID, want)
+		}
+		if _, err := NewDS(context.Background(), backend.DataSourceInstanceSettings{JSONData: []byte(js)}); err != nil {
+			t.Errorf("NewDS(%s): %v", js, err)
+		}
+	}
+
+	var cfg config
+	if err := json.Unmarshal([]byte(`{"organizationId":true}`), &cfg); err == nil {
+		t.Error("a boolean organizationId was accepted")
+	}
+}
+
+func TestBuildFrameKeepsAPIFieldOrder(t *testing.T) {
+	t.Parallel()
+	rows := []json.RawMessage{
+		json.RawMessage(`{"serial":"Q2-1","status":"online","network":{"id":"N_1","name":"HQ"},"mac":"aa"}`),
+		json.RawMessage(`{"serial":"Q2-2","status":"offline","network":{"id":"N_2","name":"Lab"},"mac":"bb","tags":["x"]}`),
+	}
+	want := []string{"serial", "status", "network.id", "network.name", "mac", "tags"}
+
+	// Map iteration is random, so one lucky pass proves nothing.
+	for range 20 {
+		frame, err := buildFrame("t", rows)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, f := range frame.Fields {
+			got = append(got, f.Name)
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("fields = %v, want %v", got, want)
+		}
 	}
 }
 
