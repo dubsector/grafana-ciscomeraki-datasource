@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
@@ -210,7 +212,11 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 		}
 		return d.c.SwitchPortStatuses(ctx, q.DeviceSerial)
 	case "applianceUplinkStatuses":
-		return d.c.ApplianceUplinkStatuses(ctx)
+		rows, err := d.c.ApplianceUplinkStatuses(ctx, q.NetworkID)
+		if err != nil {
+			return nil, err
+		}
+		return explode(rows, "uplinks"), nil
 	case "vpnStats":
 		return d.c.VPNStats(ctx, t0, t1)
 	default:
@@ -266,25 +272,83 @@ func buildFrame(name string, rows []json.RawMessage) (*data.Frame, error) {
 	return frame, nil
 }
 
-// flatten walks a JSON object in source order, joining nested keys with dots.
-func flatten(raw json.RawMessage, prefix string, keys *[]string, out map[string]interface{}) error {
+// explode gives each element of a row's array field its own row, repeating
+// the row's other fields, so a table shows one line per uplink.
+func explode(rows []json.RawMessage, field string) []json.RawMessage {
+	out := make([]json.RawMessage, 0, len(rows))
+	for _, raw := range rows {
+		keys, vals, err := orderedObject(raw)
+		i := slices.Index(keys, field)
+		var items []json.RawMessage
+		if err != nil || i < 0 || json.Unmarshal(vals[i], &items) != nil || len(items) == 0 {
+			out = append(out, raw)
+			continue
+		}
+		for _, item := range items {
+			ik, iv, err := orderedObject(item)
+			if err != nil {
+				continue
+			}
+			out = append(out, encodeObject(
+				slices.Concat(keys[:i], ik, keys[i+1:]),
+				slices.Concat(vals[:i], iv, vals[i+1:]),
+			))
+		}
+	}
+	return out
+}
+
+// orderedObject splits a JSON object into its keys and raw values, in order.
+func orderedObject(raw json.RawMessage) ([]string, []json.RawMessage, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
-		return fmt.Errorf("not a JSON object")
+		return nil, nil, fmt.Errorf("not a JSON object")
 	}
+	var keys []string
+	var vals []json.RawMessage
 	for dec.More() {
 		tok, err := dec.Token()
 		if err != nil {
-			return err
-		}
-		key, _ := tok.(string)
-		if prefix != "" {
-			key = prefix + "." + key
+			return nil, nil, err
 		}
 		var v json.RawMessage
 		if err := dec.Decode(&v); err != nil {
-			return err
+			return nil, nil, err
 		}
+		key, _ := tok.(string)
+		keys = append(keys, key)
+		vals = append(vals, v)
+	}
+	return keys, vals, nil
+}
+
+func encodeObject(keys []string, vals []json.RawMessage) json.RawMessage {
+	var b bytes.Buffer
+	b.WriteByte('{')
+	for i, k := range keys {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		kb, _ := json.Marshal(k)
+		b.Write(kb)
+		b.WriteByte(':')
+		b.Write(vals[i])
+	}
+	b.WriteByte('}')
+	return b.Bytes()
+}
+
+// flatten walks a JSON object in source order, joining nested keys with dots.
+func flatten(raw json.RawMessage, prefix string, keys *[]string, out map[string]interface{}) error {
+	ks, vs, err := orderedObject(raw)
+	if err != nil {
+		return err
+	}
+	for i, key := range ks {
+		if prefix != "" {
+			key = prefix + "." + key
+		}
+		v := vs[i]
 		if bytes.HasPrefix(bytes.TrimSpace(v), []byte("{")) {
 			if err := flatten(v, key, keys, out); err != nil {
 				return err
@@ -350,9 +414,28 @@ func makeField(name string, vals []interface{}) *data.Field {
 	typed := make([]*string, len(vals))
 	for i, x := range vals {
 		if x != nil {
-			s := fmt.Sprintf("%v", x)
+			s := cellText(x)
 			typed[i] = &s
 		}
 	}
 	return data.NewField(name, nil, typed)
+}
+
+// cellText shows a list of plain values as "a, b" and anything else
+// nested as JSON, instead of Go's [a b] and map[...] syntax.
+func cellText(v interface{}) string {
+	arr, ok := v.([]interface{})
+	if !ok {
+		return fmt.Sprintf("%v", v)
+	}
+	parts := make([]string, 0, len(arr))
+	for _, x := range arr {
+		switch x.(type) {
+		case map[string]interface{}, []interface{}:
+			b, _ := json.Marshal(arr)
+			return string(b)
+		}
+		parts = append(parts, fmt.Sprintf("%v", x))
+	}
+	return strings.Join(parts, ", ")
 }

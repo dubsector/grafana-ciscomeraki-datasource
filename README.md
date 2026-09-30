@@ -18,7 +18,7 @@ A Grafana backend datasource plugin for the [Cisco Meraki Dashboard API v1](http
 | Appliance Uplink Statuses | Live WAN uplink status across the org |
 | VPN Stats | Site-to-site VPN latency, loss, and jitter |
 
-- Template variable support: networks, devices (optionally filtered by `networkId` or `productType`), and `eventProductTypes` for a network's event log product types
+- Template variable support: networks (optionally only those with given `productTypes`), devices (optionally filtered by `networkId` or `productType`), and `eventProductTypes` for a network's event log product types
 - 4 pre-built dashboards (Device Health, Network Events, Wireless, Infrastructure)
 - API key stored securely in Grafana's encrypted config
 - Automatic pagination and retry with exponential backoff

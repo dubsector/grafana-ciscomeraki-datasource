@@ -126,6 +126,50 @@ func TestBuildFrameKeepsAPIFieldOrder(t *testing.T) {
 	}
 }
 
+func TestExplodeGivesEachUplinkARow(t *testing.T) {
+	t.Parallel()
+	rows := explode([]json.RawMessage{
+		json.RawMessage(`{"serial":"Q2-1","uplinks":[{"interface":"wan1","status":"active"},{"interface":"wan2","status":"ready"}],"model":"MX75"}`),
+		json.RawMessage(`{"serial":"Q2-2","uplinks":[],"model":"MX68"}`),
+	}, "uplinks")
+
+	want := []string{
+		`{"serial":"Q2-1","interface":"wan1","status":"active","model":"MX75"}`,
+		`{"serial":"Q2-1","interface":"wan2","status":"ready","model":"MX75"}`,
+		`{"serial":"Q2-2","uplinks":[],"model":"MX68"}`,
+	}
+	if len(rows) != len(want) {
+		t.Fatalf("got %d rows, want %d: %s", len(rows), len(want), rows)
+	}
+	for i := range want {
+		if string(rows[i]) != want[i] {
+			t.Errorf("row %d = %s, want %s", i, rows[i], want[i])
+		}
+	}
+}
+
+func TestBuildFrameShowsListsAsText(t *testing.T) {
+	t.Parallel()
+	frame, err := buildFrame("t", []json.RawMessage{
+		json.RawMessage(`{"errors":["CRC errors","Port flapping"],"nested":[{"a":1}]}`),
+		json.RawMessage(`{"errors":[],"nested":[]}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string][]string{
+		"errors": {"CRC errors, Port flapping", ""},
+		"nested": {`[{"a":1}]`, ""},
+	}
+	for _, f := range frame.Fields {
+		for i, w := range want[f.Name] {
+			if got, _ := f.ConcreteAt(i); got != w {
+				t.Errorf("%s[%d] = %q, want %q", f.Name, i, got, w)
+			}
+		}
+	}
+}
+
 func TestRunRequiresNetworkForWirelessStats(t *testing.T) {
 	t.Parallel()
 	ds, _ := testDS(t)

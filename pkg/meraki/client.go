@@ -257,8 +257,13 @@ func (c *Client) SwitchPortStatuses(ctx context.Context, serial string) ([]json.
 	return c.get(ctx, fmt.Sprintf("/devices/%s/switch/ports/statuses", serial), nil)
 }
 
-func (c *Client) ApplianceUplinkStatuses(ctx context.Context) ([]json.RawMessage, error) {
-	return c.get(ctx, fmt.Sprintf("/organizations/%s/appliance/uplink/statuses", c.orgID), nil)
+// ApplianceUplinkStatuses covers the whole org when networkID is empty.
+func (c *Client) ApplianceUplinkStatuses(ctx context.Context, networkID string) ([]json.RawMessage, error) {
+	var p url.Values
+	if networkID != "" {
+		p = url.Values{"networkIds[]": {networkID}}
+	}
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/appliance/uplink/statuses", c.orgID), p)
 }
 
 func (c *Client) VPNStats(ctx context.Context, t0, t1 time.Time) ([]json.RawMessage, error) {

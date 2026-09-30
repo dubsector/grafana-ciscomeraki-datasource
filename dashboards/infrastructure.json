@@ -7,7 +7,7 @@
     { "type": "panel", "id": "text",  "name": "Text",  "version": "" }
   ],
   "title": "Meraki - Infrastructure",
-  "description": "Switch port statuses and appliance uplink state.",
+  "description": "Switch ports and appliance WAN uplinks for one network.",
   "tags": ["meraki"],
   "editable": true,
   "time": { "from": "now-1h", "to": "now" },
@@ -18,58 +18,128 @@
       "id": 1, "type": "text", "title": "",
       "gridPos": { "x": 0, "y": 0, "w": 24, "h": 2 },
       "transparent": true,
-      "options": { "mode": "markdown", "content": "Live data — time range picker has no effect on this dashboard." }
+      "options": { "mode": "markdown", "content": "Live data for the selected network. The time range has no effect here." }
     },
     {
-      "id": 2, "type": "row", "title": "Switch Port Statuses",
+      "id": 2, "type": "row", "title": "Switch Ports",
       "gridPos": { "x": 0, "y": 2, "w": 24, "h": 1 }, "panels": []
     },
     {
       "id": 3, "type": "table", "title": "Port Statuses",
-      "gridPos": { "x": 0, "y": 3, "w": 24, "h": 10 },
+      "gridPos": { "x": 0, "y": 3, "w": 24, "h": 12 },
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
         "queryType": "switchPortStatuses", "deviceSerial": "${switch_serial}",
-        "networkId": "", "productType": "", "historical": false
+        "networkId": "${network}", "productType": "", "historical": false
       }],
-      "options": { "sortBy": [{ "displayName": "portId", "desc": false }] },
-      "fieldConfig": {
-        "defaults": { "custom": { "filterable": true } },
-        "overrides": [
-          { "matcher": { "id": "byName", "options": "status" },
-            "properties": [{ "id": "mappings", "value": [
-              { "type": "value", "options": { "connected":    { "text": "Up",   "color": "green" } } },
-              { "type": "value", "options": { "disconnected": { "text": "Down", "color": "red"   } } }
-            ]}]
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": [
+          "portId", "enabled", "status", "speed", "duplex", "isUplink", "clientCount",
+          "trafficInKbps.total", "poe.isAllocated", "powerUsageInWh", "lldp.systemName", "errors", "warnings"
+        ]}}},
+        { "id": "organize", "options": {
+          "indexByName": {
+            "portId": 0, "status": 1, "enabled": 2, "speed": 3, "duplex": 4, "isUplink": 5, "clientCount": 6,
+            "trafficInKbps.total": 7, "poe.isAllocated": 8, "powerUsageInWh": 9, "lldp.systemName": 10,
+            "errors": 11, "warnings": 12
+          },
+          "renameByName": {
+            "portId": "Port", "status": "Status", "enabled": "Enabled", "speed": "Speed", "duplex": "Duplex",
+            "isUplink": "Uplink", "clientCount": "Clients", "trafficInKbps.total": "Traffic",
+            "poe.isAllocated": "PoE", "powerUsageInWh": "PoE energy", "lldp.systemName": "LLDP neighbor",
+            "errors": "Errors", "warnings": "Warnings"
           }
+        }}
+      ],
+      "fieldConfig": {
+        "defaults": { "noValue": "No switches in this network", "custom": { "filterable": true } },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*" }, "properties": [{ "id": "noValue", "value": "" }] },
+          { "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "mappings", "value": [{ "type": "value", "options": {
+                "Connected":    { "color": "green" },
+                "Disconnected": { "color": "text" },
+                "Disabled":     { "color": "#8e8e8e" }
+              }}]}
+            ]
+          },
+          { "matcher": { "id": "byName", "options": "Errors" },
+            "properties": [{ "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          },
+          { "matcher": { "id": "byName", "options": "Warnings" },
+            "properties": [{ "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          },
+          { "matcher": { "id": "byName", "options": "Traffic" }, "properties": [{ "id": "unit", "value": "Kbits" }] },
+          { "matcher": { "id": "byName", "options": "PoE energy" }, "properties": [{ "id": "unit", "value": "watth" }] }
         ]
       }
     },
     {
-      "id": 4, "type": "row", "title": "Appliance Uplink Statuses",
-      "gridPos": { "x": 0, "y": 13, "w": 24, "h": 1 }, "panels": []
+      "id": 4, "type": "row", "title": "WAN Uplinks",
+      "gridPos": { "x": 0, "y": 15, "w": 24, "h": 1 }, "panels": []
     },
     {
       "id": 5, "type": "table", "title": "WAN Uplinks",
-      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 8 },
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 7 },
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
         "queryType": "applianceUplinkStatuses",
-        "networkId": "", "deviceSerial": "", "productType": "", "historical": false
+        "networkId": "${network}", "deviceSerial": "", "productType": "", "historical": false
       }],
-      "options": { "sortBy": [{ "displayName": "networkId", "desc": false }] },
-      "fieldConfig": { "defaults": { "custom": { "filterable": true } }, "overrides": [] }
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": [
+          "serial", "model", "interface", "status", "ip", "publicIp", "gateway",
+          "primaryDns", "secondaryDns", "ipAssignedBy", "highAvailability.role", "lastReportedAt"
+        ]}}},
+        { "id": "organize", "options": {
+          "indexByName": {
+            "serial": 0, "model": 1, "interface": 2, "status": 3, "ip": 4, "publicIp": 5, "gateway": 6,
+            "primaryDns": 7, "secondaryDns": 8, "ipAssignedBy": 9, "highAvailability.role": 10, "lastReportedAt": 11
+          },
+          "renameByName": {
+            "serial": "Appliance", "model": "Model", "interface": "Interface", "status": "Status", "ip": "IP",
+            "publicIp": "Public IP", "gateway": "Gateway", "primaryDns": "DNS 1", "secondaryDns": "DNS 2",
+            "ipAssignedBy": "Assigned by", "highAvailability.role": "HA role", "lastReportedAt": "Last reported"
+          }
+        }}
+      ],
+      "fieldConfig": {
+        "defaults": { "noValue": "No appliance in this network", "custom": { "filterable": true } },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*" }, "properties": [{ "id": "noValue", "value": "" }] },
+          { "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "mappings", "value": [{ "type": "value", "options": {
+                "active":        { "color": "green" },
+                "ready":         { "color": "blue" },
+                "connecting":    { "color": "orange" },
+                "failed":        { "color": "red" },
+                "not connected": { "color": "#8e8e8e" }
+              }}]}
+            ]
+          }
+        ]
+      }
     }
   ],
   "templating": { "list": [
     { "name": "DS", "type": "datasource", "pluginId": "dubsector-ciscomeraki-datasource", "label": "Data Source", "hide": 0 },
     {
+      "name": "network", "type": "query", "label": "Network",
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "query": "{\"queryType\":\"networks\",\"productTypes\":[\"switch\",\"appliance\"]}",
+      "refresh": 1, "sort": 1, "hide": 0
+    },
+    {
       "name": "switch_serial", "type": "query", "label": "Switch",
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
-      "query": "{\"queryType\":\"devices\",\"productType\":\"switch\"}",
-      "refresh": 2, "sort": 1, "hide": 0
+      "query": "{\"queryType\":\"devices\",\"networkId\":\"${network}\",\"productType\":\"switch\"}",
+      "refresh": 1, "sort": 1, "hide": 0
     }
   ]},
   "annotations": { "list": [] },

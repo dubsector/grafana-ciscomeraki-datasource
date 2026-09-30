@@ -54,6 +54,10 @@ export const NEEDS_NETWORK: QueryType[] = [
   'wirelessConnectionStats',
   'wirelessClientCount',
   'switchPortStatuses',
+];
+
+// Query types that can be narrowed to a network but default to the whole org
+export const OPTIONAL_NETWORK: QueryType[] = [
   'applianceUplinkStatuses',
 ];
 
@@ -75,6 +79,8 @@ export const DEVICE_PRODUCT_FILTER: Partial<Record<QueryType, string>> = {
 // For each query type, what network product types are relevant
 export const NETWORK_PRODUCT_FILTER: Partial<Record<QueryType, string[]>> = {
   securityEvents:          ['appliance'],
+  switchPortStatuses:      ['switch'],
+  applianceUplinkStatuses: ['appliance'],
   networkClients:          ['wireless', 'appliance', 'switch', 'cellularGateway'],
   wirelessLatencyStats:    ['wireless'],
   wirelessConnectionStats: ['wireless'],

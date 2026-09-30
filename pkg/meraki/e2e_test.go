@@ -174,7 +174,7 @@ func TestE2E(t *testing.T) {
 				return c.DeviceAvailabilityHistory(ctx, week0, now, "")
 			})
 			run("ApplianceUplinkStatuses", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
-				return c.ApplianceUplinkStatuses(ctx)
+				return c.ApplianceUplinkStatuses(ctx, "")
 			})
 			run("VPNStats", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 				return c.VPNStats(ctx, day0, now)
@@ -199,6 +199,20 @@ func TestE2E(t *testing.T) {
 						run("SecurityEvents", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 							return c.SecurityEvents(ctx, n.ID, day0, now)
 						})
+						uplinks := run("ApplianceUplinkStatuses", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+							return c.ApplianceUplinkStatuses(ctx, n.ID)
+						})
+						if len(uplinks) == 0 {
+							t.Error("ApplianceUplinkStatuses: no appliance in a network with one")
+						}
+						for _, u := range uplinks {
+							var row struct {
+								NetworkID string `json:"networkId"`
+							}
+							if json.Unmarshal(u, &row) == nil && row.NetworkID != n.ID {
+								t.Errorf("ApplianceUplinkStatuses: got network %s, want %s", row.NetworkID, n.ID)
+							}
+						}
 					}
 					if slices.Contains(n.ProductTypes, "wireless") {
 						run("WirelessLatencyStats", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {

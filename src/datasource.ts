@@ -7,6 +7,7 @@ import {
   MerakiDSOpts,
   MerakiNetwork,
   MerakiQuery,
+  NEEDS_DEVICE,
   NETWORK_EVENT_PRODUCT_TYPES,
   NETWORK_PRODUCT_FILTER,
 } from './types';
@@ -24,7 +25,11 @@ export class MerakiDS extends DataSourceWithBackend<MerakiQuery, MerakiDSOpts> {
   }
 
   filterQuery(q: MerakiQuery): boolean {
-    return !!q.queryType;
+    if (!q.queryType) return false;
+    // Skip instead of erroring when a device picker has nothing in it,
+    // e.g. a network without switches, so the panel shows its empty text.
+    if (NEEDS_DEVICE.includes(q.queryType) && !getTemplateSrv().replace(q.deviceSerial ?? '')) return false;
+    return true;
   }
 
   applyTemplateVariables(q: MerakiQuery, vars: ScopedVars): MerakiQuery {
@@ -42,12 +47,13 @@ export class MerakiDS extends DataSourceWithBackend<MerakiQuery, MerakiDSOpts> {
 
   /**
    * Template variable support.
-   * Pass a JSON string: { "queryType": "devices", "networkId": "${network}", "productType": "switch" }
-   * or { "queryType": "eventProductTypes", "networkId": "${network}" },
-   * or just rely on default (returns all networks).
+   * Pass a JSON string: { "queryType": "devices", "networkId": "${network}", "productType": "switch" },
+   * { "queryType": "eventProductTypes", "networkId": "${network}" },
+   * or { "queryType": "networks", "productTypes": ["switch", "appliance"] }.
+   * With no query it returns all networks.
    */
   async metricFindQuery(raw: unknown): Promise<MetricFindValue[]> {
-    let q: { queryType?: string; networkId?: string; productType?: string } | undefined;
+    let q: { queryType?: string; networkId?: string; productType?: string; productTypes?: string[] } | undefined;
     if (typeof raw === 'string') {
       try { q = JSON.parse(getTemplateSrv().replace(raw)); } catch { /* use default */ }
     } else if (typeof raw === 'object' && raw !== null) {
@@ -73,17 +79,11 @@ export class MerakiDS extends DataSourceWithBackend<MerakiQuery, MerakiDSOpts> {
         .map(t => ({ text: t.label, value: t.value }));
     }
 
-    // Filter networks by query type compatibility if requested
-    if (q?.queryType) {
-      const allowed = NETWORK_PRODUCT_FILTER[q.queryType as keyof typeof NETWORK_PRODUCT_FILTER];
-      if (allowed) {
-        return networks
-          .filter(n => (n.productTypes ?? []).some(p => allowed.includes(p)))
-          .map(n => ({ text: n.name ?? n.id, value: n.id }));
-      }
-    }
-
-    return networks.map(n => ({ text: n.name ?? n.id, value: n.id }));
+    // Networks, limited to the given product types or the query type's
+    const allowed = q?.productTypes ?? NETWORK_PRODUCT_FILTER[q?.queryType as keyof typeof NETWORK_PRODUCT_FILTER];
+    return networks
+      .filter(n => !allowed || (n.productTypes ?? []).some(p => allowed.includes(p)))
+      .map(n => ({ text: n.name ?? n.id, value: n.id }));
   }
 
   async networks(): Promise<MerakiNetwork[]> {

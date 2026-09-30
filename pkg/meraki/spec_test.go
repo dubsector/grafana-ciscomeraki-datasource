@@ -78,7 +78,7 @@ func TestClientMatchesSpec(t *testing.T) {
 		"WirelessConnectionStats": func() error { _, err := c.WirelessConnectionStats(ctx, "N_1", t0, t1); return err },
 		"WirelessClientCount":     func() error { _, err := c.WirelessClientCount(ctx, "N_1", t0, t1); return err },
 		"SwitchPortStatuses":      func() error { _, err := c.SwitchPortStatuses(ctx, "Q2XX-XXXX-XXXX"); return err },
-		"ApplianceUplinkStatuses": func() error { _, err := c.ApplianceUplinkStatuses(ctx); return err },
+		"ApplianceUplinkStatuses": func() error { _, err := c.ApplianceUplinkStatuses(ctx, "N_1"); return err },
 		"VPNStats":                func() error { _, err := c.VPNStats(ctx, t0, t1); return err },
 	}
 
