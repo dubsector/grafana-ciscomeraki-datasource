@@ -5,7 +5,7 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
-  # Weekly, so emulator changes get tested even when this repo is quiet.
+  # Weekly, so emulator releases get tested even when this repo is quiet.
   schedule:
     - cron: "17 6 * * 1"
   workflow_dispatch:
@@ -64,26 +64,25 @@ jobs:
       - name: Test backend
         run: go test ./pkg/...
 
-      # Tracks main on purpose so the client is always tested against the
-      # current emulator. The step summary records which commit ran.
-      - name: Check out Meraki API emulator
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          repository: dubsector/meraki-api-emulator
-          ref: main
-          path: meraki-api-emulator
-          persist-credentials: false
-
+      # Uses the latest release on purpose so the client is always tested
+      # against the current emulator. The step summary records the version.
       - name: End-to-end test against the emulator
         env:
+          EMULATOR_IMAGE: ghcr.io/dubsector/meraki-api-emulator:latest
           MERAKI_E2E_URL: http://127.0.0.1:8765/api/v1
           MERAKI_E2E_NOW: "2026-09-15T12:00:00Z"
         run: |
-          sha=$(git -C meraki-api-emulator rev-parse HEAD)
-          echo "Emulator: [\`${sha:0:7}\`](https://github.com/dubsector/meraki-api-emulator/commit/$sha)" >> "$GITHUB_STEP_SUMMARY"
-          node meraki-api-emulator/bin/meraki-api-emulator.js --port 8765 --now "$MERAKI_E2E_NOW" --rate-limit 0 -q &
+          docker pull -q "$EMULATOR_IMAGE"
+          version=$(docker inspect -f '{{index .Config.Labels "org.opencontainers.image.version"}}' "$EMULATOR_IMAGE")
+          digest=$(docker inspect -f '{{index .RepoDigests 0}}' "$EMULATOR_IMAGE")
+          echo "Emulator: [$version](https://github.com/dubsector/meraki-api-emulator/releases/tag/v$version) \`${digest#*@}\`" >> "$GITHUB_STEP_SUMMARY"
+          docker run -d --name meraki-emulator -p 127.0.0.1:8765:8765 "$EMULATOR_IMAGE" --now "$MERAKI_E2E_NOW" --rate-limit 0 -q
           curl -sf --retry 30 --retry-connrefused --retry-delay 1 http://127.0.0.1:8765/healthz > /dev/null
           go test -count=1 -tags e2e ./pkg/meraki -run TestE2E -v
+
+      - name: Emulator logs
+        if: failure()
+        run: docker logs meraki-emulator || true
 
       - name: Build backend
         run: go tool mage -v

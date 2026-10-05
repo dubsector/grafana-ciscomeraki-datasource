@@ -24,6 +24,13 @@ import (
 // callTimeout catches paging loops that never end. Calls take milliseconds.
 const callTimeout = 10 * time.Second
 
+// eventProductTypes are the productType values the event log accepts.
+// Sensors have none, so a network with MT sensors skips that type.
+var eventProductTypes = []string{
+	"appliance", "camera", "campusGateway", "cellularGateway", "secureConnect",
+	"switch", "systemsManager", "wireless", "wirelessController",
+}
+
 // pager overrides perPage on requests that send one and counts requests.
 type pager struct {
 	perPage  string
@@ -195,7 +202,9 @@ func TestE2E(t *testing.T) {
 					avail := run("DeviceAvailabilities", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 						return c.DeviceAvailabilities(ctx, "", n.ID)
 					})
-					if len(avail) == 0 {
+					// Systems Manager enrollments aren't inventory devices.
+					smOnly := slices.Equal(n.ProductTypes, []string{"systemsManager"})
+					if len(avail) == 0 && !smOnly {
 						t.Error("DeviceAvailabilities: no devices in the network")
 					}
 					for _, a := range avail {
@@ -223,6 +232,9 @@ func TestE2E(t *testing.T) {
 						}
 					}
 					for _, pt := range n.ProductTypes {
+						if !slices.Contains(eventProductTypes, pt) {
+							continue
+						}
 						events := run("NetworkEvents", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 							return c.NetworkEvents(ctx, n.ID, pt, day0, now)
 						})
