@@ -25,6 +25,7 @@
         { "type": "dashboard", "name": "Meraki - Security & SD-WAN",    "path": "dashboards/security-sdwan.json" },
         { "type": "dashboard", "name": "Meraki - Switching",            "path": "dashboards/switching.json" },
         { "type": "dashboard", "name": "Meraki - Wireless",             "path": "dashboards/wireless.json" },
+        { "type": "dashboard", "name": "Meraki - Sensors",              "path": "dashboards/sensors.json" },
         { "type": "dashboard", "name": "Meraki - Device Health",        "path": "dashboards/device-health.json" }
     ],
     "dependencies": {

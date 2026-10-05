@@ -16,7 +16,9 @@ export type QueryType =
   | 'switchPortStatuses'
   | 'applianceUplinkStatuses'
   | 'applianceLanPorts'
-  | 'vpnStats';
+  | 'vpnStats'
+  | 'sensorReadingsLatest'
+  | 'sensorReadingsHistory';
 
 export interface QueryTypeOption {
   label: string;
@@ -38,6 +40,8 @@ export const QUERY_TYPE_OPTIONS: QueryTypeOption[] = [
   { value: 'applianceUplinkStatuses',  label: 'Appliance Uplink Statuses',   description: 'Live WAN uplink status' },
   { value: 'applianceLanPorts',        label: 'Appliance LAN Ports',         description: 'MX LAN port settings (VLAN, access or trunk)' },
   { value: 'vpnStats',                 label: 'VPN Stats',                   description: 'Site-to-site VPN latency, loss, jitter' },
+  { value: 'sensorReadingsLatest',     label: 'Sensor Readings',             description: 'Newest MT sensor reading per metric' },
+  { value: 'sensorReadingsHistory',    label: 'Sensor Readings History',     description: 'MT sensor readings as time series' },
 ];
 
 // Query types that are live snapshots (time range has no effect)
@@ -49,6 +53,7 @@ export const LIVE_QUERY_TYPES: QueryType[] = [
   'switchPortStatuses',
   'applianceUplinkStatuses',
   'applianceLanPorts',
+  'sensorReadingsLatest',
 ];
 
 // Query types that need a network selected
@@ -69,12 +74,20 @@ export const OPTIONAL_NETWORK: QueryType[] = [
   'deviceStatuses',
   'applianceUplinkStatuses',
   'vpnStats',
+  'sensorReadingsLatest',
+  'sensorReadingsHistory',
 ];
 
 // Query types that need a device serial selected
 export const NEEDS_DEVICE: QueryType[] = [
   'deviceClients',
   'switchPortStatuses',
+];
+
+// Query types that can be narrowed to a device but default to all of them
+export const OPTIONAL_DEVICE: QueryType[] = [
+  'sensorReadingsLatest',
+  'sensorReadingsHistory',
 ];
 
 // For each query type, what product type must a device have to appear in the dropdown
@@ -84,6 +97,8 @@ export const DEVICE_PRODUCT_FILTER: Partial<Record<QueryType, string>> = {
   wirelessLatencyStats:    'wireless',
   wirelessConnectionStats: 'wireless',
   wirelessClientCount:     'wireless',
+  sensorReadingsLatest:    'sensor',
+  sensorReadingsHistory:   'sensor',
 };
 
 // For each query type, what network product types are relevant
@@ -97,6 +112,8 @@ export const NETWORK_PRODUCT_FILTER: Partial<Record<QueryType, string[]>> = {
   wirelessLatencyStats:    ['wireless'],
   wirelessConnectionStats: ['wireless'],
   wirelessClientCount:     ['wireless'],
+  sensorReadingsLatest:    ['sensor'],
+  sensorReadingsHistory:   ['sensor'],
 };
 
 // ── Product type dropdowns ────────────────────────────────────────────────────
@@ -112,6 +129,7 @@ export const DEVICE_PRODUCT_TYPES = [
   { label: 'Wireless Controller',  value: 'wirelessController' },
   { label: 'Campus Gateway',       value: 'campusGateway' },
   { label: 'Secure Connect',       value: 'secureConnect' },
+  { label: 'Sensor',               value: 'sensor' },
 ];
 
 export const NETWORK_EVENT_PRODUCT_TYPES = [
@@ -122,7 +140,31 @@ export const NETWORK_EVENT_PRODUCT_TYPES = [
   { label: 'Systems Manager',      value: 'systemsManager' },
   { label: 'Cellular Gateway',     value: 'cellularGateway' },
   { label: 'Wireless Controller',  value: 'wirelessController' },
+  { label: 'Campus Gateway',       value: 'campusGateway' },
   { label: 'Secure Connect',       value: 'secureConnect' },
+];
+
+// MT sensor metrics, as the readings endpoints name them
+export const SENSOR_METRICS = [
+  { label: 'All',                   value: '' },
+  { label: 'Temperature',           value: 'temperature' },
+  { label: 'Humidity',              value: 'humidity' },
+  { label: 'Door',                  value: 'door' },
+  { label: 'Water',                 value: 'water' },
+  { label: 'CO2',                   value: 'co2' },
+  { label: 'PM2.5',                 value: 'pm25' },
+  { label: 'TVOC',                  value: 'tvoc' },
+  { label: 'Indoor Air Quality',    value: 'indoorAirQuality' },
+  { label: 'Noise',                 value: 'noise' },
+  { label: 'Battery',               value: 'battery' },
+  { label: 'Real Power',            value: 'realPower' },
+  { label: 'Apparent Power',        value: 'apparentPower' },
+  { label: 'Current',               value: 'current' },
+  { label: 'Voltage',               value: 'voltage' },
+  { label: 'Frequency',             value: 'frequency' },
+  { label: 'Power Factor',          value: 'powerFactor' },
+  { label: 'Downstream Power',      value: 'downstreamPower' },
+  { label: 'Remote Lockout Switch', value: 'remoteLockoutSwitch' },
 ];
 
 // ── Query model ───────────────────────────────────────────────────────────────
@@ -134,6 +176,10 @@ export interface MerakiQuery extends DataQuery {
   productType: string;
   /** deviceAvailabilities only: query change history instead of live status */
   historical: boolean;
+  /** sensor queries only: one metric, or empty for all */
+  metric?: string;
+  /** sensor queries only: temperature in °F instead of °C */
+  fahrenheit?: boolean;
 }
 
 export const DEFAULT_QUERY: Partial<MerakiQuery> = {

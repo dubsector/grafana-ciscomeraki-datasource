@@ -20,6 +20,7 @@ var (
 	WirelessStatsWindow       = Window{Lookback: 180 * day, MaxSpan: 7 * day}
 	ClientCountWindow         = Window{Lookback: 31 * day, MaxSpan: 31 * day}
 	VPNStatsWindow            = Window{Lookback: 31 * day, MaxSpan: 31 * day}
+	SensorHistoryWindow       = Window{Lookback: 365 * day, MaxSpan: 7 * day}
 )
 
 func (w Window) LookbackDays() int { return int(w.Lookback / day) }

@@ -64,6 +64,20 @@ func TestRunClampsRangeAndAddsNotice(t *testing.T) {
 	}
 }
 
+func TestRunKeepsNoticeWithoutSensorData(t *testing.T) {
+	t.Parallel()
+	ds, _ := testDS(t)
+	now := time.Now()
+
+	resp := ds.run(context.Background(), dataQuery(`{"queryType":"sensorReadingsHistory"}`, now.Add(-30*24*time.Hour), now))
+	if resp.Error != nil {
+		t.Fatal(resp.Error)
+	}
+	if len(resp.Frames) != 1 || resp.Frames[0].Meta == nil || !strings.Contains(resp.Frames[0].Meta.Notices[0].Text, "7 days") {
+		t.Fatalf("frames = %+v, want one empty frame with the 7-day notice", resp.Frames)
+	}
+}
+
 func TestRunLeavesShortRangeAlone(t *testing.T) {
 	t.Parallel()
 	ds, _ := testDS(t)

@@ -19,9 +19,12 @@ A Grafana backend datasource plugin for the [Cisco Meraki Dashboard API v1](http
 | Appliance Uplink Statuses | Live WAN uplink status across the org |
 | Appliance LAN Ports | MX LAN port settings (VLAN, access or trunk) |
 | VPN Stats | Site-to-site VPN latency, loss, and jitter |
+| Sensor Readings | Newest MT sensor reading per metric, one row each |
+| Sensor Readings History | MT sensor readings as one time series per sensor and metric |
 
 - Template variable support: networks (optionally only those with given `productTypes`), devices (optionally filtered by `networkId` or `productType`), and `eventProductTypes` for a network's event log product types
-- 5 pre-built dashboards, in the order of the Meraki dashboard menu: Network Events, Security & SD-WAN, Switching, Wireless, Device Health
+- 6 pre-built dashboards, in the order of the Meraki dashboard menu: Network Events, Security & SD-WAN, Switching, Wireless, Sensors, Device Health
+- Sensor queries can be narrowed to a network, a sensor and a metric. Each reading has one numeric value: door open, water present and similar switches are 1 or 0, and temperature is in °C unless the Fahrenheit switch is on. Button presses aren't included
 - API key stored securely in Grafana's encrypted config
 - Automatic pagination and retry with exponential backoff
 - Time ranges are trimmed to each Meraki endpoint's limits (for example 7 days per request for wireless stats), with a notice on the panel when that happens

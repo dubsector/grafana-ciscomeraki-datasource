@@ -284,6 +284,33 @@ func (c *Client) ApplianceLANPorts(ctx context.Context, networkID string) ([]jso
 	return c.get(ctx, fmt.Sprintf("/networks/%s/appliance/ports", networkID), nil)
 }
 
+// SensorReadingsLatest is each MT sensor's newest reading per metric.
+// Empty networkID, serial or metric means no filter.
+func (c *Client) SensorReadingsLatest(ctx context.Context, networkID, serial, metric string) ([]json.RawMessage, error) {
+	p := url.Values{"perPage": {"1000"}}
+	filterSensors(p, networkID, serial, metric)
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/sensor/readings/latest", c.orgID), p)
+}
+
+// SensorReadingsHistory is every MT reading in [t0, t1], one row per reading.
+func (c *Client) SensorReadingsHistory(ctx context.Context, t0, t1 time.Time, networkID, serial, metric string) ([]json.RawMessage, error) {
+	p := url.Values{"t0": {ts(t0)}, "t1": {ts(t1)}, "perPage": {"1000"}}
+	filterSensors(p, networkID, serial, metric)
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/sensor/readings/history", c.orgID), p)
+}
+
+func filterSensors(p url.Values, networkID, serial, metric string) {
+	if networkID != "" {
+		p.Set("networkIds[]", networkID)
+	}
+	if serial != "" {
+		p.Set("serials[]", serial)
+	}
+	if metric != "" {
+		p.Set("metrics[]", metric)
+	}
+}
+
 // VPNStats covers the whole org when networkID is empty.
 func (c *Client) VPNStats(ctx context.Context, t0, t1 time.Time, networkID string) ([]json.RawMessage, error) {
 	p := url.Values{"t0": {ts(t0)}, "t1": {ts(t1)}, "perPage": {"300"}}

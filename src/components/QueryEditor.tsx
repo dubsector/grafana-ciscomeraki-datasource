@@ -14,16 +14,19 @@ import {
   NEEDS_NETWORK,
   NETWORK_EVENT_PRODUCT_TYPES,
   NETWORK_PRODUCT_FILTER,
+  OPTIONAL_DEVICE,
   OPTIONAL_NETWORK,
   QUERY_TYPE_OPTIONS,
   QueryType,
+  SENSOR_METRICS,
 } from '../types';
 
 type Props = QueryEditorProps<MerakiDS, MerakiQuery, MerakiDSOpts>;
 
-/** Pick a sensible default product type from a network's list. Prefers 'appliance'. */
+/** Pick a default event log product type from a network's list. Prefers 'appliance'. */
 function defaultProductType(types: string[]): string {
-  return types.find(t => t === 'appliance') ?? types[0] ?? '';
+  const logged = types.filter(t => NETWORK_EVENT_PRODUCT_TYPES.some(o => o.value === t));
+  return logged.find(t => t === 'appliance') ?? logged[0] ?? '';
 }
 
 /** Filter networks to those compatible with a query type. */
@@ -118,8 +121,9 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
       }
       return;
     }
-    if (selectedNetworkProductTypes.length > 0) {
-      onChange({ ...query, productType: defaultProductType(selectedNetworkProductTypes) });
+    const pt = defaultProductType(selectedNetworkProductTypes);
+    if (pt) {
+      onChange({ ...query, productType: pt });
       onRunQuery();
     }
   }, [query, selectedNetworkProductTypes, onChange, onRunQuery]);
@@ -177,6 +181,16 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     onRunQuery();
   }, [query, onChange, onRunQuery]);
 
+  const onMetricChange = useCallback((opt: { value?: string } | null) => {
+    onChange({ ...query, metric: opt?.value ?? '' });
+    onRunQuery();
+  }, [query, onChange, onRunQuery]);
+
+  const onFahrenheitToggle = useCallback(() => {
+    onChange({ ...query, fahrenheit: !query.fahrenheit });
+    onRunQuery();
+  }, [query, onChange, onRunQuery]);
+
   const onHistoricalToggle = useCallback(() => {
     onChange({ ...query, historical: !query.historical });
     onRunQuery();
@@ -187,7 +201,9 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
   const qt = query.queryType;
   const optionalNetwork  = OPTIONAL_NETWORK.includes(qt);
   const showNetwork      = NEEDS_NETWORK.includes(qt) || optionalNetwork;
-  const showDevice       = NEEDS_DEVICE.includes(qt);
+  const optionalDevice   = OPTIONAL_DEVICE.includes(qt);
+  const showDevice       = NEEDS_DEVICE.includes(qt) || optionalDevice;
+  const showSensor       = qt === 'sensorReadingsLatest' || qt === 'sensorReadingsHistory';
   const showHistorical   = qt === 'deviceAvailabilities';
   const showEventPT      = qt === 'networkEvents';
   const showDeviceFilter = qt === 'deviceAvailabilities' || qt === 'deviceStatuses';
@@ -201,6 +217,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     applianceLanPorts:      'Current LAN port settings. Time range has no effect.',
     networkClients:         'Live client snapshot. Time range has no effect.',
     deviceClients:          'Live client snapshot. Time range has no effect.',
+    sensorReadingsLatest:   'Newest reading per sensor and metric. Time range has no effect.',
   };
 
   const liveMsg = isLive && liveMessages[qt];
@@ -252,7 +269,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
             options={deviceOpts}
             value={query.deviceSerial || null}
             onChange={onDeviceChange}
-            placeholder={dLoading ? 'Loading devices…' : 'Select a device'}
+            placeholder={dLoading ? 'Loading devices…' : optionalDevice ? 'All sensors' : 'Select a device'}
             isClearable
             width={40}
           />
@@ -269,6 +286,25 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
             placeholder="Select product type"
             width={26}
           />
+        </InlineField>
+      )}
+
+      {showSensor && (
+        <InlineField label="Metric" labelWidth={18} tooltip="Only this metric (optional)">
+          <Combobox
+            id="qe-metric"
+            options={SENSOR_METRICS}
+            value={query.metric ?? ''}
+            onChange={onMetricChange}
+            isClearable
+            width={26}
+          />
+        </InlineField>
+      )}
+
+      {showSensor && (
+        <InlineField label="Fahrenheit" labelWidth={18} tooltip="Temperature in °F instead of °C">
+          <InlineSwitch id="qe-fahrenheit" value={!!query.fahrenheit} onChange={onFahrenheitToggle} />
         </InlineField>
       )}
 

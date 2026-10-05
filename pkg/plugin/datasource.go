@@ -31,33 +31,48 @@ type DS struct {
 	c *meraki.Client
 
 	mu       sync.Mutex
-	netNames map[string]string
-	netExp   time.Time
+	netNames nameCache
+	devNames nameCache
 }
 
-// networkNames maps network IDs to names, fetched at most once a minute.
-// A failed refresh keeps the old names rather than failing the query.
+type nameCache struct {
+	names map[string]string
+	exp   time.Time
+}
+
+// networkNames maps network IDs to names.
 func (d *DS) networkNames(ctx context.Context) map[string]string {
+	return d.cachedNames(ctx, &d.netNames, d.c.Networks, "id")
+}
+
+// deviceNames maps device serials to names.
+func (d *DS) deviceNames(ctx context.Context) map[string]string {
+	return d.cachedNames(ctx, &d.devNames, d.c.Devices, "serial")
+}
+
+// cachedNames fetches at most once a minute. A failed refresh keeps the
+// old names rather than failing the query.
+func (d *DS) cachedNames(ctx context.Context, c *nameCache, fetch func(context.Context) ([]json.RawMessage, error), idKey string) map[string]string {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if d.netNames != nil && time.Now().Before(d.netExp) {
-		return d.netNames
+	if c.names != nil && time.Now().Before(c.exp) {
+		return c.names
 	}
-	rows, err := d.c.Networks(ctx)
+	rows, err := fetch(ctx)
 	if err != nil {
-		return d.netNames
+		return c.names
 	}
 	names := map[string]string{}
 	for _, r := range rows {
-		var n struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
+		var m map[string]interface{}
+		if json.Unmarshal(r, &m) != nil {
+			continue
 		}
-		if json.Unmarshal(r, &n) == nil {
-			names[n.ID] = n.Name
-		}
+		id, _ := m[idKey].(string)
+		name, _ := m["name"].(string)
+		names[id] = name
 	}
-	d.netNames, d.netExp = names, time.Now().Add(time.Minute)
+	c.names, c.exp = names, time.Now().Add(time.Minute)
 	return names
 }
 
@@ -175,6 +190,8 @@ type query struct {
 	DeviceSerial string `json:"deviceSerial"`
 	ProductType  string `json:"productType"`
 	Historical   bool   `json:"historical"`
+	Metric       string `json:"metric"`
+	Fahrenheit   bool   `json:"fahrenheit"`
 }
 
 func (d *DS) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
@@ -211,14 +228,23 @@ func (d *DS) run(ctx context.Context, bq backend.DataQuery) backend.DataResponse
 		return backend.ErrDataResponse(backend.StatusInternal, err.Error())
 	}
 
-	frame, err := buildFrame(q.QueryType, rows)
-	if err != nil {
-		return backend.ErrDataResponse(backend.StatusInternal, err.Error())
+	var frames data.Frames
+	if q.QueryType == "sensorReadingsHistory" {
+		frames = sensorSeries(rows, q.Fahrenheit)
+	} else {
+		frame, err := buildFrame(q.QueryType, rows)
+		if err != nil {
+			return backend.ErrDataResponse(backend.StatusInternal, err.Error())
+		}
+		frames = data.Frames{frame}
 	}
 	if notice != "" {
-		frame.AppendNotices(data.Notice{Severity: data.NoticeSeverityInfo, Text: notice})
+		if len(frames) == 0 {
+			frames = data.Frames{data.NewFrame(q.QueryType)}
+		}
+		frames[0].AppendNotices(data.Notice{Severity: data.NoticeSeverityInfo, Text: notice})
 	}
-	return backend.DataResponse{Frames: data.Frames{frame}}
+	return backend.DataResponse{Frames: frames}
 }
 
 // timeWindow returns the Meraki time limits for query types that take t0/t1.
@@ -234,6 +260,8 @@ func timeWindow(q query) (meraki.Window, bool) {
 		return meraki.ClientCountWindow, true
 	case "vpnStats":
 		return meraki.VPNStatsWindow, true
+	case "sensorReadingsHistory":
+		return meraki.SensorHistoryWindow, true
 	}
 	return meraki.Window{}, false
 }
@@ -315,6 +343,18 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 			return nil, err
 		}
 		return vpnPeerRows(rows), nil
+	case "sensorReadingsLatest":
+		rows, err := d.c.SensorReadingsLatest(ctx, q.NetworkID, q.DeviceSerial, q.Metric)
+		if err != nil {
+			return nil, err
+		}
+		return sensorRows(rows, d.deviceNames(ctx), q.Fahrenheit), nil
+	case "sensorReadingsHistory":
+		rows, err := d.c.SensorReadingsHistory(ctx, t0, t1, q.NetworkID, q.DeviceSerial, q.Metric)
+		if err != nil {
+			return nil, err
+		}
+		return sensorRows(rows, d.deviceNames(ctx), q.Fahrenheit), nil
 	default:
 		return nil, fmt.Errorf("unknown queryType: %s", q.QueryType)
 	}

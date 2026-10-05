@@ -82,6 +82,14 @@ func TestClientMatchesSpec(t *testing.T) {
 		"ApplianceUplinkStatuses": func() error { _, err := c.ApplianceUplinkStatuses(ctx, "N_1"); return err },
 		"VPNStats":                func() error { _, err := c.VPNStats(ctx, t0, t1, "N_1"); return err },
 		"ApplianceLANPorts":       func() error { _, err := c.ApplianceLANPorts(ctx, "N_1"); return err },
+		"SensorReadingsLatest": func() error {
+			_, err := c.SensorReadingsLatest(ctx, "N_1", "Q3CA-XXXX-XXXX", "temperature")
+			return err
+		},
+		"SensorReadingsHistory": func() error {
+			_, err := c.SensorReadingsHistory(ctx, t0, t1, "N_1", "Q3CA-XXXX-XXXX", "temperature")
+			return err
+		},
 	}
 
 	ct := reflect.TypeOf(c)
