@@ -189,6 +189,9 @@ func TestE2E(t *testing.T) {
 			run("VPNStats", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 				return c.VPNStats(ctx, day0, now, "")
 			})
+			run("SensorReadingsLatest", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.SensorReadingsLatest(ctx, "", "", "")
+			})
 
 			for _, n := range nets {
 				t.Run(n.Name, func(t *testing.T) {
@@ -267,6 +270,31 @@ func TestE2E(t *testing.T) {
 								if json.Unmarshal(r, &row) == nil && row.NetworkID != n.ID {
 									t.Errorf("%s: got network %s, want %s", method, row.NetworkID, n.ID)
 								}
+							}
+						}
+					}
+					if slices.Contains(n.ProductTypes, "sensor") {
+						latest := run("SensorReadingsLatest", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+							return c.SensorReadingsLatest(ctx, n.ID, "", "")
+						})
+						history := run("SensorReadingsHistory", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+							return c.SensorReadingsHistory(ctx, day0, now, n.ID, "", "temperature")
+						})
+						if len(latest) == 0 || len(history) == 0 {
+							t.Error("SensorReadings: no readings in a network with sensors")
+						}
+						for _, r := range slices.Concat(latest, history) {
+							var row struct {
+								Network struct{ ID string } `json:"network"`
+							}
+							if json.Unmarshal(r, &row) == nil && row.Network.ID != n.ID {
+								t.Errorf("SensorReadings: got network %s, want %s", row.Network.ID, n.ID)
+							}
+						}
+						for _, r := range history {
+							var row struct{ Metric string }
+							if json.Unmarshal(r, &row) == nil && row.Metric != "temperature" {
+								t.Errorf("SensorReadingsHistory: got metric %q, want temperature", row.Metric)
 							}
 						}
 					}
