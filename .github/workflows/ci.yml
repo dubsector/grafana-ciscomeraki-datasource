@@ -77,7 +77,7 @@ jobs:
           digest=$(docker inspect -f '{{index .RepoDigests 0}}' "$EMULATOR_IMAGE")
           echo "Emulator: [$version](https://github.com/dubsector/meraki-api-emulator/releases/tag/v$version) \`${digest#*@}\`" >> "$GITHUB_STEP_SUMMARY"
           docker run -d --name meraki-emulator -p 127.0.0.1:8765:8765 "$EMULATOR_IMAGE" --now "$MERAKI_E2E_NOW" --rate-limit 0 -q
-          curl -sf --retry 30 --retry-connrefused --retry-delay 1 http://127.0.0.1:8765/healthz > /dev/null
+          curl -sf --retry 30 --retry-all-errors --retry-delay 1 http://127.0.0.1:8765/healthz > /dev/null
           go test -count=1 -tags e2e ./pkg/meraki -run TestE2E -v
 
       - name: Emulator logs
