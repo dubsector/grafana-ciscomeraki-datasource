@@ -17,7 +17,7 @@
     "@types/react-dom": "^19.3.0",
     "copy-webpack-plugin": "^14.0.0",
     "css-loader": "^7.1.5",
-    "oxlint": "^1.86.0",
+    "oxlint": "^1.88.0",
     "style-loader": "^4.0.0",
     "swc-loader": "^0.2.6",
     "ts-node": "^10.9.2",
