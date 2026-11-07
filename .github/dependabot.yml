@@ -13,6 +13,10 @@ updates:
       grafana:
         patterns:
           - "@grafana/*"
+    ignore:
+      # Grafana's create-plugin build (fork-ts-checker, diagnostics plugin) does not support TypeScript 7 yet.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 20
     rebase-strategy: "auto"
 
