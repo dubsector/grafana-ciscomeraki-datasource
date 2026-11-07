@@ -12,7 +12,7 @@
     "sign": "sign-plugin"
   },
   "devDependencies": {
-    "@grafana/sign-plugin": "^3.3.3",
+    "@grafana/sign-plugin": "^4.0.0",
     "@grafana/tsconfig": "^2.2.0",
     "@swc/core": "^1.16.2",
     "@swc/helpers": "^0.5.0",
@@ -40,8 +40,8 @@
     "webpack-virtual-modules": "^0.6.2"
   },
   "dependencies": {
-    "@grafana/data": "^13.2.2",
-    "@grafana/runtime": "^13.2.2",
+    "@grafana/data": "^13.3.0",
+    "@grafana/runtime": "^13.3.0",
     "@grafana/schema": "^13.2.1",
     "@grafana/ui": "^13.2.1",
     "react": "19.3.1",
