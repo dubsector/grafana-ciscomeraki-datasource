@@ -1,0 +1,94 @@
+{
+  "__inputs": [{ "name": "DS", "label": "Meraki", "type": "datasource", "pluginId": "dubsector-ciscomeraki-datasource" }],
+  "__requires": [
+    { "type": "grafana", "id": "grafana",  "name": "Grafana",     "version": "12.0.0" },
+    { "type": "datasource", "id": "dubsector-ciscomeraki-datasource", "name": "Cisco Meraki", "version": "1.0.0" },
+    { "type": "panel", "id": "stat",  "name": "Stat",  "version": "" },
+    { "type": "panel", "id": "table", "name": "Table", "version": "" }
+  ],
+  "title": "Meraki - Device Health",
+  "description": "Live device availability across the organization.",
+  "tags": ["meraki"],
+  "editable": true,
+  "graphTooltip": 0,
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "refresh": "1m",
+  "panels": [
+    {
+      "id": 1, "type": "row", "title": "Live Status",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "panels": []
+    },
+    {
+      "id": 2, "type": "stat", "title": "Online",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "targets": [{
+        "refId": "A",
+        "queryType": "deviceAvailabilities", "networkId": "", "deviceSerial": "",
+        "productType": "", "historical": false
+      }],
+      "transformations": [{
+        "id": "filterByValue",
+        "options": { "type": "include", "match": "any", "filters": [
+          { "fieldName": "status", "config": { "id": "equal", "options": { "value": "online" } } }
+        ]}
+      }],
+      "options": { "reduceOptions": { "calcs": ["count"], "fields": "/^serial$/" }, "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "none",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "green", "value": 1 }
+          ]}
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3, "type": "table", "title": "All Devices",
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 12 },
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "targets": [{
+        "refId": "A",
+        "queryType": "deviceStatuses", "networkId": "", "deviceSerial": "",
+        "productType": "", "historical": false
+      }],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["name", "status", "networkName", "productType", "model", "lanIp", "publicIp", "serial", "mac", "tags"] } } },
+        { "id": "organize", "options": {
+          "indexByName": { "name": 0, "status": 1, "networkName": 2, "productType": 3, "model": 4, "lanIp": 5, "publicIp": 6, "serial": 7, "mac": 8, "tags": 9 },
+          "renameByName": { "name": "Name", "status": "Status", "networkName": "Network", "productType": "Product", "model": "Model", "lanIp": "LAN IP", "publicIp": "Public IP", "serial": "Serial", "mac": "MAC", "tags": "Tags" }
+        }}
+      ],
+      "options": { "sortBy": [{ "displayName": "Status", "desc": false }] },
+      "fieldConfig": {
+        "defaults": { "custom": { "filterable": true } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Status" },
+            "properties": [{ "id": "custom.width", "value": 100 }, { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "mappings", "value": [
+                { "type": "value", "options": { "online":   { "text": "Online",   "color": "green" } } },
+                { "type": "value", "options": { "offline":  { "text": "Offline",  "color": "red"   } } },
+                { "type": "value", "options": { "alerting": { "text": "Alerting", "color": "orange"} } },
+                { "type": "value", "options": { "dormant":  { "text": "Dormant",  "color": "blue"  } } }
+              ]}
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "templating": { "list": [
+    {
+      "name": "DS", "type": "datasource", "pluginId": "dubsector-ciscomeraki-datasource",
+      "label": "Data Source", "hide": 0
+    }
+  ]},
+  "annotations": { "list": [] },
+  "version": 1,
+  "id": null,
+  "uid": ""
+}

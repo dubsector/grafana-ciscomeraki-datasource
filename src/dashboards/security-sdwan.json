@@ -1,0 +1,629 @@
+{
+  "__inputs": [
+    {
+      "name": "DS",
+      "label": "Meraki",
+      "type": "datasource",
+      "pluginId": "dubsector-ciscomeraki-datasource"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "12.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "dubsector-ciscomeraki-datasource",
+      "name": "Cisco Meraki",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
+      "version": ""
+    }
+  ],
+  "title": "Meraki - Security & SD-WAN",
+  "description": "WAN uplinks, Meraki VPN peers and LAN port settings for one network.",
+  "tags": [
+    "meraki",
+    "appliance"
+  ],
+  "editable": true,
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "refresh": "1m",
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 2
+      },
+      "transparent": true,
+      "options": {
+        "mode": "markdown",
+        "content": "Uplinks and LAN port settings are live. VPN stats cover the selected time range."
+      }
+    },
+    {
+      "id": 4,
+      "type": "row",
+      "title": "WAN Uplinks",
+      "gridPos": {
+        "x": 0,
+        "y": 2,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "WAN Uplinks",
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "applianceUplinkStatuses",
+          "networkId": "${network}",
+          "deviceSerial": "",
+          "productType": "",
+          "historical": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "serial",
+                "model",
+                "interface",
+                "status",
+                "ip",
+                "publicIp",
+                "gateway",
+                "primaryDns",
+                "secondaryDns",
+                "ipAssignedBy",
+                "highAvailability.role",
+                "lastReportedAt"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "serial": 0,
+              "model": 1,
+              "interface": 2,
+              "status": 3,
+              "ip": 4,
+              "publicIp": 5,
+              "gateway": 6,
+              "primaryDns": 7,
+              "secondaryDns": 8,
+              "ipAssignedBy": 9,
+              "highAvailability.role": 10,
+              "lastReportedAt": 11
+            },
+            "renameByName": {
+              "serial": "Appliance",
+              "model": "Model",
+              "interface": "Interface",
+              "status": "Status",
+              "ip": "IP",
+              "publicIp": "Public IP",
+              "gateway": "Gateway",
+              "primaryDns": "DNS 1",
+              "secondaryDns": "DNS 2",
+              "ipAssignedBy": "Assigned by",
+              "highAvailability.role": "HA role",
+              "lastReportedAt": "Last reported"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No appliance in this network",
+          "custom": {
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "noValue",
+                "value": ""
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "active": {
+                        "color": "green"
+                      },
+                      "ready": {
+                        "color": "blue"
+                      },
+                      "connecting": {
+                        "color": "orange"
+                      },
+                      "failed": {
+                        "color": "red"
+                      },
+                      "not connected": {
+                        "color": "#8e8e8e"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "type": "row",
+      "title": "Site-to-Site VPN",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Meraki VPN peers",
+      "description": "Traffic and link quality to each Meraki VPN peer over the selected time range, per uplink pair.",
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "vpnStats",
+          "networkId": "${network}",
+          "deviceSerial": "",
+          "productType": "",
+          "historical": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "peerNetworkName",
+                "senderUplink",
+                "receiverUplink",
+                "sentInKilobytes",
+                "receivedInKilobytes",
+                "avgLatencyMs",
+                "maxLatencyMs",
+                "avgLossPercentage",
+                "maxLossPercentage",
+                "avgJitter",
+                "avgMos"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "peerNetworkName": 0,
+              "senderUplink": 1,
+              "receiverUplink": 2,
+              "sentInKilobytes": 3,
+              "receivedInKilobytes": 4,
+              "avgLatencyMs": 5,
+              "maxLatencyMs": 6,
+              "avgLossPercentage": 7,
+              "maxLossPercentage": 8,
+              "avgJitter": 9,
+              "avgMos": 10
+            },
+            "renameByName": {
+              "peerNetworkName": "Peer",
+              "senderUplink": "Local uplink",
+              "receiverUplink": "Peer uplink",
+              "sentInKilobytes": "Sent",
+              "receivedInKilobytes": "Received",
+              "avgLatencyMs": "Latency (avg)",
+              "maxLatencyMs": "Latency (max)",
+              "avgLossPercentage": "Loss (avg)",
+              "maxLossPercentage": "Loss (max)",
+              "avgJitter": "Jitter (avg)",
+              "avgMos": "MOS (avg)"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No Meraki VPN peers for this network",
+          "custom": {
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "noValue",
+                "value": ""
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Sent|Received)$"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "deckbytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Latency|Jitter)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^Loss"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MOS (avg)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 3.5
+                    },
+                    {
+                      "color": "green",
+                      "value": 4
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "LAN Ports",
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "LAN port settings",
+      "description": "How each MX LAN port is configured. The Meraki API has no live link state for MX ports.",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "applianceLanPorts",
+          "networkId": "${network}",
+          "deviceSerial": "",
+          "productType": "",
+          "historical": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "number",
+                "enabled",
+                "type",
+                "vlan",
+                "allowedVlans",
+                "accessPolicy",
+                "dropUntaggedTraffic"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "number": 0,
+              "enabled": 1,
+              "type": 2,
+              "vlan": 3,
+              "allowedVlans": 4,
+              "accessPolicy": 5,
+              "dropUntaggedTraffic": 6
+            },
+            "renameByName": {
+              "number": "Port",
+              "enabled": "Enabled",
+              "type": "Mode",
+              "vlan": "VLAN",
+              "allowedVlans": "Allowed VLANs",
+              "accessPolicy": "Access policy",
+              "dropUntaggedTraffic": "Drop untagged"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No appliance in this network",
+          "custom": {
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "noValue",
+                "value": ""
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Enabled"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "true": {
+                        "text": "Enabled",
+                        "color": "green"
+                      },
+                      "false": {
+                        "text": "Disabled",
+                        "color": "#8e8e8e"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "VLAN"
+            },
+            "properties": [
+              {
+                "id": "description",
+                "value": "Access VLAN, or the native VLAN on a trunk"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "DS",
+        "type": "datasource",
+        "pluginId": "dubsector-ciscomeraki-datasource",
+        "label": "Data Source",
+        "hide": 0
+      },
+      {
+        "name": "network",
+        "type": "query",
+        "label": "Network",
+        "datasource": {
+          "type": "dubsector-ciscomeraki-datasource",
+          "uid": "${DS}"
+        },
+        "query": "{\"queryType\":\"networks\",\"productTypes\":[\"appliance\"]}",
+        "refresh": 1,
+        "sort": 1,
+        "hide": 0
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "version": 1,
+  "id": null,
+  "uid": ""
+}

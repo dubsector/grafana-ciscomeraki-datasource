@@ -1,0 +1,25 @@
+version: "2"
+
+run:
+  build-tags:
+    - e2e
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - misspell
+    - noctx
+  exclusions:
+    presets:
+      - std-error-handling
+      - common-false-positives
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/dubsector/meraki-datasource

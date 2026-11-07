@@ -1,0 +1,120 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Weekly, so emulator releases get tested even when this repo is quiet.
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build plugin
+    runs-on: ubuntu-latest
+    outputs:
+      zip: ${{ steps.package.outputs.zip }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Test frontend
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Verify Go modules
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+
+      - name: Lint backend
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.14.0
+
+      - name: Test backend
+        run: go test ./pkg/...
+
+      # Uses the latest release on purpose so the client is always tested
+      # against the current emulator. The step summary records the version.
+      - name: End-to-end test against the emulator
+        env:
+          EMULATOR_IMAGE: ghcr.io/dubsector/meraki-api-emulator:latest
+          MERAKI_E2E_URL: http://127.0.0.1:8765/api/v1
+          MERAKI_E2E_NOW: "2026-09-15T12:00:00Z"
+        run: |
+          docker pull -q "$EMULATOR_IMAGE"
+          version=$(docker inspect -f '{{index .Config.Labels "org.opencontainers.image.version"}}' "$EMULATOR_IMAGE")
+          digest=$(docker inspect -f '{{index .RepoDigests 0}}' "$EMULATOR_IMAGE")
+          echo "Emulator: [$version](https://github.com/dubsector/meraki-api-emulator/releases/tag/v$version) \`${digest#*@}\`" >> "$GITHUB_STEP_SUMMARY"
+          docker run -d --name meraki-emulator -p 127.0.0.1:8765:8765 "$EMULATOR_IMAGE" --now "$MERAKI_E2E_NOW" --rate-limit 0 -q
+          curl -sf --retry 30 --retry-all-errors --retry-delay 1 http://127.0.0.1:8765/healthz > /dev/null
+          go test -count=1 -tags e2e ./pkg/meraki -run TestE2E -v
+
+      - name: Emulator logs
+        if: failure()
+        run: docker logs meraki-emulator || true
+
+      - name: Build backend
+        run: go tool mage -v
+
+      - name: Package plugin
+        id: package
+        run: |
+          PLUGIN_ID=dubsector-ciscomeraki-datasource
+          cp -r dist "${PLUGIN_ID}"
+          zip -r "${PLUGIN_ID}.zip" "${PLUGIN_ID}/"
+          echo "zip=${PLUGIN_ID}.zip" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: plugin-zip
+          path: ${{ steps.package.outputs.zip }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Download build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: plugin-zip
+          path: verified-artifact
+
+      - name: Verify build artifact
+        env:
+          ARTIFACT: verified-artifact/${{ steps.package.outputs.zip }}
+          PLUGIN_ID: dubsector-ciscomeraki-datasource
+        run: |
+          test -s "$ARTIFACT"
+          unzip -t "$ARTIFACT"
+          unzip -p "$ARTIFACT" "$PLUGIN_ID/plugin.json" > /dev/null
+          unzip -p "$ARTIFACT" "$PLUGIN_ID/module.js" > /dev/null

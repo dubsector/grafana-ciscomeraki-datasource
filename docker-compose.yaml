@@ -1,0 +1,14 @@
+services:
+  grafana:
+    extends:
+      file: .config/docker-compose-base.yaml
+      service: grafana
+    depends_on:
+      - emulator
+
+  # Stand-in for the Meraki Dashboard API with simulated orgs, networks and devices.
+  emulator:
+    image: ghcr.io/dubsector/meraki-api-emulator:0.5.1
+    command: ['--rate-limit', '0', '-q']
+    ports:
+      - 8765:8765/tcp

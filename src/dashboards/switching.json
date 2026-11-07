@@ -1,0 +1,732 @@
+{
+  "__inputs": [
+    {
+      "name": "DS",
+      "label": "Meraki",
+      "type": "datasource",
+      "pluginId": "dubsector-ciscomeraki-datasource"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "12.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "dubsector-ciscomeraki-datasource",
+      "name": "Cisco Meraki",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    }
+  ],
+  "title": "Meraki - Switching",
+  "description": "Switches in a network and the live ports of the selected one.",
+  "tags": [
+    "meraki",
+    "switch"
+  ],
+  "editable": true,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "refresh": "1m",
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Switches",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Switches in this network",
+      "description": "Click a switch name to show its ports below.",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "deviceStatuses",
+          "networkId": "${network}",
+          "productType": "switch",
+          "deviceSerial": "",
+          "historical": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "name",
+                "status",
+                "model",
+                "lanIp",
+                "serial",
+                "mac"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "name": 0,
+              "status": 1,
+              "model": 2,
+              "lanIp": 3,
+              "serial": 4,
+              "mac": 5
+            },
+            "renameByName": {
+              "name": "Name",
+              "status": "Status",
+              "model": "Model",
+              "lanIp": "IP",
+              "serial": "Serial",
+              "mac": "MAC"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No switches in this network",
+          "custom": {
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "noValue",
+                "value": ""
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Name"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Show ports",
+                    "url": "/d/${__dashboard.uid}?${DS:queryparam}&${network:queryparam}&var-switch_serial=${__data.fields.serial}&${__url_time_range}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "online": {
+                        "text": "Online",
+                        "color": "green"
+                      },
+                      "offline": {
+                        "text": "Offline",
+                        "color": "red"
+                      },
+                      "alerting": {
+                        "text": "Alerting",
+                        "color": "orange"
+                      },
+                      "dormant": {
+                        "text": "Dormant",
+                        "color": "blue"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "${switch_serial:text}",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Connected ports",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "switchPortStatuses",
+          "deviceSerial": "${switch_serial}",
+          "networkId": "${network}",
+          "productType": "",
+          "historical": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "type": "include",
+            "match": "any",
+            "filters": [
+              {
+                "fieldName": "status",
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "Connected"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "/^portId$/"
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Ports with errors",
+      "gridPos": {
+        "x": 6,
+        "y": 9,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "switchPortStatuses",
+          "deviceSerial": "${switch_serial}",
+          "networkId": "${network}",
+          "productType": "",
+          "historical": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "type": "include",
+            "match": "any",
+            "filters": [
+              {
+                "fieldName": "errors",
+                "config": {
+                  "id": "regex",
+                  "options": {
+                    "value": ".+"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "/^portId$/"
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Clients",
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "switchPortStatuses",
+          "deviceSerial": "${switch_serial}",
+          "networkId": "${network}",
+          "productType": "",
+          "historical": false
+        }
+      ],
+      "transformations": [],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "/^clientCount$/"
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "PoE energy",
+      "gridPos": {
+        "x": 18,
+        "y": 9,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "switchPortStatuses",
+          "deviceSerial": "${switch_serial}",
+          "networkId": "${network}",
+          "productType": "",
+          "historical": false
+        }
+      ],
+      "transformations": [],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "/^powerUsageInWh$/"
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "watth",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Ports",
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 24,
+        "h": 16
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "switchPortStatuses",
+          "deviceSerial": "${switch_serial}",
+          "networkId": "${network}",
+          "productType": "",
+          "historical": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "portId",
+                "enabled",
+                "status",
+                "speed",
+                "duplex",
+                "isUplink",
+                "clientCount",
+                "trafficInKbps.total",
+                "poe.isAllocated",
+                "powerUsageInWh",
+                "lldp.systemName",
+                "errors",
+                "warnings"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "portId": 0,
+              "status": 1,
+              "enabled": 2,
+              "speed": 3,
+              "duplex": 4,
+              "isUplink": 5,
+              "clientCount": 6,
+              "trafficInKbps.total": 7,
+              "poe.isAllocated": 8,
+              "powerUsageInWh": 9,
+              "lldp.systemName": 10,
+              "errors": 11,
+              "warnings": 12
+            },
+            "renameByName": {
+              "portId": "Port",
+              "status": "Status",
+              "enabled": "Enabled",
+              "speed": "Speed",
+              "duplex": "Duplex",
+              "isUplink": "Uplink",
+              "clientCount": "Clients",
+              "trafficInKbps.total": "Traffic",
+              "poe.isAllocated": "PoE",
+              "powerUsageInWh": "PoE energy",
+              "lldp.systemName": "LLDP neighbor",
+              "errors": "Errors",
+              "warnings": "Warnings"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No switches in this network",
+          "custom": {
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "noValue",
+                "value": ""
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "Connected": {
+                        "color": "green"
+                      },
+                      "Disconnected": {
+                        "color": "text"
+                      },
+                      "Disabled": {
+                        "color": "#8e8e8e"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Errors"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Warnings"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Traffic"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "Kbits"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "PoE energy"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "watth"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "DS",
+        "type": "datasource",
+        "pluginId": "dubsector-ciscomeraki-datasource",
+        "label": "Data Source",
+        "hide": 0
+      },
+      {
+        "name": "network",
+        "type": "query",
+        "label": "Network",
+        "datasource": {
+          "type": "dubsector-ciscomeraki-datasource",
+          "uid": "${DS}"
+        },
+        "query": "{\"queryType\":\"networks\",\"productTypes\":[\"switch\"]}",
+        "refresh": 1,
+        "sort": 1,
+        "hide": 0
+      },
+      {
+        "name": "switch_serial",
+        "type": "query",
+        "label": "Switch",
+        "datasource": {
+          "type": "dubsector-ciscomeraki-datasource",
+          "uid": "${DS}"
+        },
+        "query": "{\"queryType\":\"devices\",\"networkId\":\"${network}\",\"productType\":\"switch\"}",
+        "refresh": 1,
+        "sort": 1,
+        "hide": 0
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "version": 1,
+  "id": null,
+  "uid": ""
+}

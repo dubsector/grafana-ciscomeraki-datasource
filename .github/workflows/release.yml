@@ -1,0 +1,129 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build plugin
+    runs-on: ubuntu-latest
+    outputs:
+      zip: ${{ steps.package.outputs.zip }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.x"
+          cache: false
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Test frontend
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Verify Go modules
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+
+      - name: Test backend
+        run: go test ./pkg/...
+
+      - name: Build backend
+        run: go tool mage -v
+
+      - name: Package plugin
+        id: package
+        run: |
+          PLUGIN_ID=dubsector-ciscomeraki-datasource
+          cp -r dist "${PLUGIN_ID}"
+          zip -r "${PLUGIN_ID}.zip" "${PLUGIN_ID}/"
+          echo "zip=${PLUGIN_ID}.zip" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: plugin-zip
+          path: ${{ steps.package.outputs.zip }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Download build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: plugin-zip
+          path: verified-artifact
+
+      - name: Verify build artifact
+        env:
+          ARTIFACT: verified-artifact/${{ steps.package.outputs.zip }}
+          PLUGIN_ID: dubsector-ciscomeraki-datasource
+        run: |
+          test -s "$ARTIFACT"
+          unzip -t "$ARTIFACT"
+          unzip -p "$ARTIFACT" "$PLUGIN_ID/plugin.json" > /dev/null
+          unzip -p "$ARTIFACT" "$PLUGIN_ID/module.js" > /dev/null
+
+      - name: Validate release tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must use vMAJOR.MINOR.PATCH format" >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Release commit must be reachable from main" >&2
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          PLUGIN_VERSION="$(node -p "require('./src/plugin.json').info.version")"
+          if [[ "$VERSION" != "$PACKAGE_VERSION" || "$VERSION" != "$PLUGIN_VERSION" ]]; then
+            echo "Tag, package, and plugin versions must match" >&2
+            exit 1
+          fi
+
+  release:
+    name: Create release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: plugin-zip
+          path: release-artifact
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: release-artifact/${{ needs.build.outputs.zip }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          overwrite_files: false

@@ -1,0 +1,15 @@
+apiVersion: 1
+
+datasources:
+  - name: Cisco Meraki (emulator)
+    type: dubsector-ciscomeraki-datasource
+    uid: meraki-emulator
+    access: proxy
+    isDefault: true
+    orgId: 1
+    editable: true
+    jsonData:
+      baseUrl: http://emulator:8765/api/v1
+      organizationId: '613605'
+    secureJsonData:
+      apiKey: emulator
