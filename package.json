@@ -24,7 +24,7 @@
     "diagnostics-webpack-plugin": "^1.0.1",
     "fork-ts-checker-webpack-plugin": "^9.1.0",
     "imports-loader": "^5.0.0",
-    "oxlint": "^1.86.0",
+    "oxlint": "^1.91.0",
     "replace-in-file-webpack-plugin": "^1.0.0",
     "sass": "^1.89.0",
     "sass-loader": "^16.0.0",
