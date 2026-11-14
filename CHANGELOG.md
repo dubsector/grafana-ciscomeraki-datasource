@@ -10,6 +10,9 @@
 
 - MT sensor readings: the newest reading per metric, and readings history as one time series per sensor and metric.
 - Sensors dashboard.
+- SD-WAN health: uplink loss and latency across the org, loss, latency and jitter history for one uplink, and uplink usage in bits per second.
+- Alerts: open organization alerts, most severe first.
+- Overview dashboard with device counts, open alerts, the worst WAN uplinks and uplink detail for a chosen network.
 
 ### Changes
 

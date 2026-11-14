@@ -18,7 +18,11 @@ export type QueryType =
   | 'applianceLanPorts'
   | 'vpnStats'
   | 'sensorReadingsLatest'
-  | 'sensorReadingsHistory';
+  | 'sensorReadingsHistory'
+  | 'uplinkLossLatency'
+  | 'uplinkLossLatencyHistory'
+  | 'applianceUplinkUsage'
+  | 'assuranceAlerts';
 
 export interface QueryTypeOption {
   label: string;
@@ -42,6 +46,10 @@ export const QUERY_TYPE_OPTIONS: QueryTypeOption[] = [
   { value: 'vpnStats',                 label: 'VPN Stats',                   description: 'Site-to-site VPN latency, loss, jitter' },
   { value: 'sensorReadingsLatest',     label: 'Sensor Readings',             description: 'Newest MT sensor reading per metric' },
   { value: 'sensorReadingsHistory',    label: 'Sensor Readings History',     description: 'MT sensor readings as time series' },
+  { value: 'uplinkLossLatency',        label: 'Uplink Loss and Latency',     description: 'Last 5 minutes per WAN uplink, worst first' },
+  { value: 'uplinkLossLatencyHistory', label: 'Uplink Loss and Latency History', description: 'Loss, latency and jitter over time for one uplink' },
+  { value: 'applianceUplinkUsage',     label: 'Uplink Usage History',        description: 'Sent and received bits per second per WAN uplink' },
+  { value: 'assuranceAlerts',          label: 'Alerts',                      description: 'Open Meraki alerts, most severe first' },
 ];
 
 // Query types that are live snapshots (time range has no effect)
@@ -54,6 +62,8 @@ export const LIVE_QUERY_TYPES: QueryType[] = [
   'applianceUplinkStatuses',
   'applianceLanPorts',
   'sensorReadingsLatest',
+  'uplinkLossLatency',
+  'assuranceAlerts',
 ];
 
 // Query types that need a network selected
@@ -66,6 +76,7 @@ export const NEEDS_NETWORK: QueryType[] = [
   'wirelessClientCount',
   'switchPortStatuses',
   'applianceLanPorts',
+  'applianceUplinkUsage',
 ];
 
 // Query types that can be narrowed to a network but default to the whole org
@@ -76,12 +87,16 @@ export const OPTIONAL_NETWORK: QueryType[] = [
   'vpnStats',
   'sensorReadingsLatest',
   'sensorReadingsHistory',
+  'uplinkLossLatency',
+  'uplinkLossLatencyHistory',
+  'assuranceAlerts',
 ];
 
 // Query types that need a device serial selected
 export const NEEDS_DEVICE: QueryType[] = [
   'deviceClients',
   'switchPortStatuses',
+  'uplinkLossLatencyHistory',
 ];
 
 // Query types that can be narrowed to a device but default to all of them
@@ -99,6 +114,7 @@ export const DEVICE_PRODUCT_FILTER: Partial<Record<QueryType, string>> = {
   wirelessClientCount:     'wireless',
   sensorReadingsLatest:    'sensor',
   sensorReadingsHistory:   'sensor',
+  uplinkLossLatencyHistory: 'appliance',
 };
 
 // For each query type, what network product types are relevant
@@ -114,6 +130,9 @@ export const NETWORK_PRODUCT_FILTER: Partial<Record<QueryType, string[]>> = {
   wirelessClientCount:     ['wireless'],
   sensorReadingsLatest:    ['sensor'],
   sensorReadingsHistory:   ['sensor'],
+  uplinkLossLatency:       ['appliance'],
+  uplinkLossLatencyHistory: ['appliance'],
+  applianceUplinkUsage:    ['appliance'],
 };
 
 // ── Product type dropdowns ────────────────────────────────────────────────────
@@ -142,6 +161,15 @@ export const NETWORK_EVENT_PRODUCT_TYPES = [
   { label: 'Wireless Controller',  value: 'wirelessController' },
   { label: 'Campus Gateway',       value: 'campusGateway' },
   { label: 'Secure Connect',       value: 'secureConnect' },
+];
+
+// WAN uplinks the loss and latency history accepts
+export const UPLINKS = [
+  { label: 'WAN 1',    value: 'wan1' },
+  { label: 'WAN 2',    value: 'wan2' },
+  { label: 'WAN 3',    value: 'wan3' },
+  { label: 'WAN 4',    value: 'wan4' },
+  { label: 'Cellular', value: 'cellular' },
 ];
 
 // MT sensor metrics, as the readings endpoints name them
@@ -180,6 +208,8 @@ export interface MerakiQuery extends DataQuery {
   metric?: string;
   /** sensor queries only: temperature in °F instead of °C */
   fahrenheit?: boolean;
+  /** uplinkLossLatencyHistory only: wan1 when empty */
+  uplink?: string;
 }
 
 export const DEFAULT_QUERY: Partial<MerakiQuery> = {

@@ -42,6 +42,7 @@ export class MerakiDS extends DataSourceWithBackend<MerakiQuery, MerakiDSOpts> {
       networkId:    q.networkId    ? s.replace(q.networkId,    vars) : '',
       deviceSerial: q.deviceSerial ? s.replace(q.deviceSerial, vars) : '',
       productType:  ptClean,
+      ...(q.uplink ? { uplink: s.replace(q.uplink, vars) } : {}),
     };
   }
 

@@ -61,6 +61,11 @@
     "includes": [
         {
             "type": "dashboard",
+            "name": "Meraki - Overview",
+            "path": "dashboards/overview.json"
+        },
+        {
+            "type": "dashboard",
             "name": "Meraki - Network Events",
             "path": "dashboards/network-events.json"
         },

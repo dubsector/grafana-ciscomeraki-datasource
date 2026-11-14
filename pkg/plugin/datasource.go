@@ -192,6 +192,7 @@ type query struct {
 	Historical   bool   `json:"historical"`
 	Metric       string `json:"metric"`
 	Fahrenheit   bool   `json:"fahrenheit"`
+	Uplink       string `json:"uplink"`
 }
 
 func (d *DS) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
@@ -229,9 +230,14 @@ func (d *DS) run(ctx context.Context, bq backend.DataQuery) backend.DataResponse
 	}
 
 	var frames data.Frames
-	if q.QueryType == "sensorReadingsHistory" {
+	switch q.QueryType {
+	case "sensorReadingsHistory":
 		frames = sensorSeries(rows, q.Fahrenheit)
-	} else {
+	case "uplinkLossLatencyHistory":
+		frames = lossLatencySeries(rows, q.DeviceSerial, uplinkOrDefault(q.Uplink))
+	case "applianceUplinkUsage":
+		frames = uplinkUsageSeries(rows)
+	default:
 		frame, err := buildFrame(q.QueryType, rows)
 		if err != nil {
 			return backend.ErrDataResponse(backend.StatusInternal, err.Error())
@@ -262,6 +268,10 @@ func timeWindow(q query) (meraki.Window, bool) {
 		return meraki.VPNStatsWindow, true
 	case "sensorReadingsHistory":
 		return meraki.SensorHistoryWindow, true
+	case "uplinkLossLatencyHistory":
+		return meraki.LossLatencyWindow, true
+	case "applianceUplinkUsage":
+		return meraki.UplinkUsageWindow, true
 	}
 	return meraki.Window{}, false
 }
@@ -355,6 +365,28 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 			return nil, err
 		}
 		return sensorRows(rows, d.deviceNames(ctx), q.Fahrenheit), nil
+	case "uplinkLossLatency":
+		rows, err := d.c.UplinksLossAndLatency(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return uplinkSummaryRows(rows, q.NetworkID, d.networkNames(ctx), d.deviceNames(ctx)), nil
+	case "uplinkLossLatencyHistory":
+		if q.DeviceSerial == "" {
+			return nil, fmt.Errorf("deviceSerial required for uplinkLossLatencyHistory")
+		}
+		return d.c.LossAndLatencyHistory(ctx, q.DeviceSerial, uplinkOrDefault(q.Uplink), defaultProbeIP, t0, t1)
+	case "applianceUplinkUsage":
+		if q.NetworkID == "" {
+			return nil, fmt.Errorf("networkId required for applianceUplinkUsage")
+		}
+		return d.c.ApplianceUplinksUsage(ctx, q.NetworkID, t0, t1)
+	case "assuranceAlerts":
+		rows, err := d.c.AssuranceAlerts(ctx, q.NetworkID)
+		if err != nil {
+			return nil, err
+		}
+		return alertRows(rows), nil
 	default:
 		return nil, fmt.Errorf("unknown queryType: %s", q.QueryType)
 	}
@@ -365,6 +397,7 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 var timeFieldNames = map[string]bool{
 	"ts": true, "occurredAt": true, "startTs": true, "endTs": true,
 	"lastReportedAt": true, "updatedAt": true, "createdAt": true, "lastSeenAt": true,
+	"startedAt": true,
 }
 
 func buildFrame(name string, rows []json.RawMessage) (*data.Frame, error) {

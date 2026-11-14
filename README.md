@@ -1,6 +1,6 @@
 # Cisco Meraki data source for Grafana
 
-Monitor Cisco Meraki networks in Grafana: device health, network and security events, wireless and switch stats, uplinks, VPN and MT sensors, all from the [Meraki Dashboard API v1](https://developer.cisco.com/meraki/api-v1/). Six ready-made dashboards follow the order of the Meraki dashboard menu, and every query works with Grafana alerting.
+Monitor Cisco Meraki networks in Grafana: device health, network and security events, wireless and switch stats, uplinks, VPN and MT sensors, all from the [Meraki Dashboard API v1](https://developer.cisco.com/meraki/api-v1/). It ships an org Overview dashboard plus six more that follow the order of the Meraki dashboard menu, and every query works with Grafana alerting.
 
 ## Features
 
@@ -21,9 +21,13 @@ Monitor Cisco Meraki networks in Grafana: device health, network and security ev
 | VPN Stats | Site-to-site VPN latency, loss, and jitter |
 | Sensor Readings | Newest MT sensor reading per metric, one row each |
 | Sensor Readings History | MT sensor readings as one time series per sensor and metric |
+| Uplink Loss and Latency | Last 5 minutes of loss and latency per WAN uplink across the org, worst first |
+| Uplink Loss and Latency History | Loss, latency and jitter over time for one appliance uplink |
+| Uplink Usage History | Sent and received bits per second per WAN uplink of a network |
+| Alerts | Open organization alerts, most severe first |
 
 - Template variable support: networks (optionally only those with given `productTypes`), devices (optionally filtered by `networkId` or `productType`), and `eventProductTypes` for a network's event log product types
-- 6 pre-built dashboards, in the order of the Meraki dashboard menu: Network Events, Security & SD-WAN, Switching, Wireless, Sensors, Device Health
+- 7 pre-built dashboards: an org Overview with device counts, open alerts and WAN health, then, in the order of the Meraki dashboard menu, Network Events, Security & SD-WAN, Switching, Wireless, Sensors, Device Health
 - Sensor queries can be narrowed to a network, a sensor and a metric. Each reading has one numeric value: door open, water present and similar switches are 1 or 0, and temperature is in °C unless the Fahrenheit switch is on. Button presses aren't included
 - API key stored securely in Grafana's encrypted config
 - Automatic pagination and retry with exponential backoff
