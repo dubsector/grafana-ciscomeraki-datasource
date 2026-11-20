@@ -23,6 +23,7 @@ type Client struct {
 	orgID  string
 	apiKey string
 	http   *http.Client
+	shared *shared
 }
 
 func New(baseURL, orgID, apiKey string) *Client {
@@ -34,15 +35,32 @@ func New(baseURL, orgID, apiKey string) *Client {
 		orgID:  orgID,
 		apiKey: apiKey,
 		http:   &http.Client{Timeout: 30 * time.Second},
+		shared: newShared(),
 	}
 }
 
+// ForOrg returns a client for another organization the same API key can
+// see. It shares the HTTP client, rate limit and cache.
+func (c *Client) ForOrg(orgID string) *Client {
+	cp := *c
+	cp.orgID = orgID
+	return &cp
+}
+
+// OrgID is the organization this client queries.
+func (c *Client) OrgID() string { return c.orgID }
+
 // get issues a GET and follows RFC-5988 Link pagination automatically.
+// Panels asking for the same thing within cacheTTL share one response.
 func (c *Client) get(ctx context.Context, path string, p url.Values) ([]json.RawMessage, error) {
 	u := c.base + path
 	if len(p) > 0 {
 		u += "?" + p.Encode()
 	}
+	return c.shared.cached(u, func() ([]json.RawMessage, error) { return c.getPages(ctx, u) })
+}
+
+func (c *Client) getPages(ctx context.Context, u string) ([]json.RawMessage, error) {
 	var out []json.RawMessage
 	for {
 		body, next, err := c.fetch(ctx, u)
@@ -70,6 +88,9 @@ func (c *Client) get(ctx context.Context, path string, p url.Values) ([]json.Raw
 func (c *Client) fetch(ctx context.Context, u string) ([]byte, string, error) {
 	delay := 500 * time.Millisecond
 	for attempt := 0; attempt <= 3; attempt++ {
+		if err := c.shared.limiter(c.orgID).wait(ctx); err != nil {
+			return nil, "", err
+		}
 		body, next, status, retryAfter, err := c.do(ctx, u)
 		if err != nil {
 			return nil, "", err

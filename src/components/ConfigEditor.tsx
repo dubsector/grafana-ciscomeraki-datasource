@@ -39,7 +39,7 @@ export function ConfigEditor({ options, onOptionsChange }: Props) {
         />
       </Field>
 
-      <Field label="Organization ID" description="Your Meraki org ID (find it under Organization → Settings)." required>
+      <Field label="Default organization ID" description="Queries use this organization unless they pick another one the API key can see. Find it under Organization → Settings." required>
         <Input
           id="cfg-org-id"
           width={50}

@@ -199,6 +199,8 @@ export const SENSOR_METRICS = [
 
 export interface MerakiQuery extends DataQuery {
   queryType: QueryType;
+  /** Organization to query; empty means the data source's default */
+  organizationId?: string;
   networkId: string;
   deviceSerial: string;
   productType: string;
@@ -232,6 +234,11 @@ export interface MerakiSecureOpts {
 }
 
 // ── API shapes (used by dropdowns) ───────────────────────────────────────────
+
+export interface MerakiOrganization {
+  id: string;
+  name: string;
+}
 
 export interface MerakiNetwork {
   id: string;
