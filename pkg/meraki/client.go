@@ -23,6 +23,7 @@ type Client struct {
 	orgID  string
 	apiKey string
 	http   *http.Client
+	shared *shared
 }
 
 func New(baseURL, orgID, apiKey string) *Client {
@@ -34,15 +35,32 @@ func New(baseURL, orgID, apiKey string) *Client {
 		orgID:  orgID,
 		apiKey: apiKey,
 		http:   &http.Client{Timeout: 30 * time.Second},
+		shared: newShared(),
 	}
 }
 
+// ForOrg returns a client for another organization the same API key can
+// see. It shares the HTTP client, rate limit and cache.
+func (c *Client) ForOrg(orgID string) *Client {
+	cp := *c
+	cp.orgID = orgID
+	return &cp
+}
+
+// OrgID is the organization this client queries.
+func (c *Client) OrgID() string { return c.orgID }
+
 // get issues a GET and follows RFC-5988 Link pagination automatically.
+// Panels asking for the same thing within cacheTTL share one response.
 func (c *Client) get(ctx context.Context, path string, p url.Values) ([]json.RawMessage, error) {
 	u := c.base + path
 	if len(p) > 0 {
 		u += "?" + p.Encode()
 	}
+	return c.shared.cached(u, func() ([]json.RawMessage, error) { return c.getPages(ctx, u) })
+}
+
+func (c *Client) getPages(ctx context.Context, u string) ([]json.RawMessage, error) {
 	var out []json.RawMessage
 	for {
 		body, next, err := c.fetch(ctx, u)
@@ -70,6 +88,9 @@ func (c *Client) get(ctx context.Context, path string, p url.Values) ([]json.Raw
 func (c *Client) fetch(ctx context.Context, u string) ([]byte, string, error) {
 	delay := 500 * time.Millisecond
 	for attempt := 0; attempt <= 3; attempt++ {
+		if err := c.shared.limiter(c.orgID).wait(ctx); err != nil {
+			return nil, "", err
+		}
 		body, next, status, retryAfter, err := c.do(ctx, u)
 		if err != nil {
 			return nil, "", err
@@ -97,7 +118,7 @@ func (c *Client) fetch(ctx context.Context, u string) ([]byte, string, error) {
 			}
 			delay *= 2
 		case status >= 400:
-			return nil, "", fmt.Errorf("meraki: HTTP %d: %s", status, string(body))
+			return nil, "", fmt.Errorf("meraki: HTTP %d: %s", status, errorText(body))
 		default:
 			return body, next, nil
 		}
@@ -129,6 +150,17 @@ func (c *Client) do(ctx context.Context, u string) (body []byte, next string, st
 		}
 	}
 	return body, nextLink(resp.Header.Get("Link")), resp.StatusCode, retryAfter, nil
+}
+
+// errorText reads Meraki's {"errors": [...]} body, or returns it as is.
+func errorText(body []byte) string {
+	var e struct {
+		Errors []string `json:"errors"`
+	}
+	if json.Unmarshal(body, &e) == nil && len(e.Errors) > 0 {
+		return strings.Join(e.Errors, "; ")
+	}
+	return strings.TrimSpace(string(body))
 }
 
 // nextLink returns the rel=next URL from a Link header, or "" on the last page.
@@ -362,4 +394,38 @@ func resolution(span time.Duration, valid ...int) string {
 		}
 	}
 	return strconv.Itoa(valid[len(valid)-1])
+}
+
+// AlertHistory is every alert, open or resolved, that started between t0
+// and t1. Empty networkID means every network.
+func (c *Client) AlertHistory(ctx context.Context, networkID string, t0, t1 time.Time) ([]json.RawMessage, error) {
+	p := url.Values{"resolved": {"true"}, "tsStart": {ts(t0)}, "tsEnd": {ts(t1)}, "perPage": {"300"}}
+	if networkID != "" {
+		p.Set("networkId", networkID)
+	}
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/assurance/alerts", c.orgID), p)
+}
+
+// LicensesOverview is one object whose shape depends on the licensing
+// model: co-termination has status and expirationDate, per-device has
+// licenseCount and states.
+func (c *Client) LicensesOverview(ctx context.Context) ([]json.RawMessage, error) {
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/licenses/overview", c.orgID), nil)
+}
+
+// TopApplications is the 50 applications that used the most data between
+// t0 and t1, in megabytes. Empty networkID means the whole organization.
+func (c *Client) TopApplications(ctx context.Context, networkID string, t0, t1 time.Time) ([]json.RawMessage, error) {
+	p := url.Values{"t0": {ts(t0)}, "t1": {ts(t1)}, "quantity": {"50"}}
+	if networkID != "" {
+		p.Set("networkId", networkID)
+	}
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/summary/top/applications/byUsage", c.orgID), p)
+}
+
+// TopClients is the 50 clients that used the most data between t0 and t1,
+// in megabytes, across the organization.
+func (c *Client) TopClients(ctx context.Context, t0, t1 time.Time) ([]json.RawMessage, error) {
+	p := url.Values{"t0": {ts(t0)}, "t1": {ts(t1)}, "quantity": {"50"}}
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/summary/top/clients/byUsage", c.orgID), p)
 }

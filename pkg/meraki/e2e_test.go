@@ -204,6 +204,30 @@ func TestE2E(t *testing.T) {
 			run("AssuranceAlerts", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 				return c.AssuranceAlerts(ctx, "")
 			})
+			run("TopApplications", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.TopApplications(ctx, "", day0, now)
+			})
+			run("TopClients", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.TopClients(ctx, day0, now)
+			})
+			lic := run("LicensesOverview", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.LicensesOverview(ctx)
+			})
+			for _, l := range decode[struct {
+				ExpirationDate string
+				LicenseCount   *int
+			}](t, lic) {
+				if l.ExpirationDate == "" && l.LicenseCount == nil {
+					t.Error("LicensesOverview: neither co-termination nor per-device fields")
+				}
+			}
+			for _, a := range decode[struct{ StartedAt time.Time }](t, run("AlertHistory", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.AlertHistory(ctx, "", week0, now)
+			})) {
+				if a.StartedAt.Before(week0) || a.StartedAt.After(now) {
+					t.Errorf("AlertHistory: alert started %s, outside the week asked for", a.StartedAt)
+				}
+			}
 
 			for _, n := range nets {
 				t.Run(n.Name, func(t *testing.T) {
@@ -356,6 +380,9 @@ func TestE2E(t *testing.T) {
 	ct := reflect.TypeFor[*Client]()
 	for i := range ct.NumMethod() {
 		name := ct.Method(i).Name
+		if notRequests[name] {
+			continue
+		}
 		s := e.stats[name]
 		switch {
 		case s == nil:

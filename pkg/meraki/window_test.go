@@ -25,6 +25,7 @@ func TestWindowClamp(t *testing.T) {
 		{"span too long keeps the latest part", WirelessStatsWindow, ago(30 * day), now, ago(7 * day), true, nil},
 		{"lookback trims t0", ClientCountWindow, ago(40 * day), ago(10 * day), ago(31*day - lookbackMargin), true, nil},
 		{"lookback and span together", VPNStatsWindow, ago(90 * day), now, ago(31*day - lookbackMargin), true, nil},
+		{"short range widens to the minimum", TopClientsWindow, ago(time.Hour), now, ago(8 * time.Hour), true, nil},
 		{"range entirely too old", ClientCountWindow, ago(60 * day), ago(40 * day), time.Time{}, false, ErrOutsideWindow},
 	}
 	for _, tt := range tests {

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { QueryEditorProps } from '@grafana/data';
+import { getTemplateSrv } from '@grafana/runtime';
 import { Alert, Combobox, InlineField, InlineSwitch, Stack } from '@grafana/ui';
 
 import { MerakiDS } from '../datasource';
@@ -9,6 +10,7 @@ import {
   MerakiDevice,
   MerakiDSOpts,
   MerakiNetwork,
+  MerakiOrganization,
   MerakiQuery,
   NEEDS_DEVICE,
   NEEDS_NETWORK,
@@ -38,28 +40,49 @@ function compatibleNetworks(all: MerakiNetwork[], qt: QueryType): MerakiNetwork[
 }
 
 export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) {
+  const [orgs,     setOrgs]     = useState<MerakiOrganization[]>([]);
   const [networks, setNetworks] = useState<MerakiNetwork[]>([]);
   const [devices,  setDevices]  = useState<MerakiDevice[]>([]);
   const [nLoading, setNLoading] = useState(false);
   const [dLoading, setDLoading] = useState(false);
 
-  // Load networks once
+  const org = query.organizationId ?? '';
+
+  // Load organizations once
+  useEffect(() => {
+    datasource.organizations()
+      .then(setOrgs)
+      .catch(() => setOrgs([]));
+  }, [datasource]);
+
+  // Load networks for the chosen organization
   useEffect(() => {
     setNLoading(true);
-    datasource.networks()
+    datasource.networks(org)
       .then(setNetworks)
       .catch(() => setNetworks([]))
       .finally(() => setNLoading(false));
-  }, [datasource]);
+  }, [datasource, org]);
 
-  // Load devices once
+  // Load devices for the chosen organization
   useEffect(() => {
     setDLoading(true);
-    datasource.devices()
+    datasource.devices(org)
       .then(setDevices)
       .catch(() => setDevices([]))
       .finally(() => setDLoading(false));
-  }, [datasource]);
+  }, [datasource, org]);
+
+  const orgOpts = useMemo(
+    () => [
+      ...orgs.map(o => ({
+        label: String(o.id) === datasource.defaultOrg ? `${o.name ?? o.id} (default)` : o.name ?? String(o.id),
+        value: String(o.id),
+      })),
+      ...getTemplateSrv().getVariables().map(v => ({ label: '$' + v.name, value: '${' + v.name + '}' })),
+    ],
+    [orgs, datasource.defaultOrg]
+  );
 
   // Networks visible for current query type
   const visibleNetworks = useMemo(
@@ -160,6 +183,12 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     onRunQuery();
   }, [networks, query, onChange, onRunQuery]);
 
+  const onOrgChange = useCallback((opt: { value?: string } | null) => {
+    const id = opt?.value ?? '';
+    onChange({ ...query, organizationId: id === datasource.defaultOrg ? '' : id, networkId: '', deviceSerial: '' });
+    onRunQuery();
+  }, [datasource.defaultOrg, query, onChange, onRunQuery]);
+
   const onNetworkChange = useCallback((opt: { value?: string } | null) => {
     const networkId = opt?.value ?? '';
     let productType = '';
@@ -197,6 +226,11 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     onRunQuery();
   }, [query, onChange, onRunQuery]);
 
+  const onAllOrgsToggle = useCallback(() => {
+    onChange({ ...query, allOrganizations: !query.allOrganizations });
+    onRunQuery();
+  }, [query, onChange, onRunQuery]);
+
   const onHistoricalToggle = useCallback(() => {
     onChange({ ...query, historical: !query.historical });
     onRunQuery();
@@ -210,11 +244,11 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
   const optionalDevice   = OPTIONAL_DEVICE.includes(qt);
   const showDevice       = NEEDS_DEVICE.includes(qt) || optionalDevice;
   const showSensor       = qt === 'sensorReadingsLatest' || qt === 'sensorReadingsHistory';
-  const showHistorical   = qt === 'deviceAvailabilities';
+  const showHistorical   = qt === 'deviceAvailabilities' || qt === 'assuranceAlerts';
   const showUplink       = qt === 'uplinkLossLatencyHistory';
   const showEventPT      = qt === 'networkEvents';
   const showDeviceFilter = qt === 'deviceAvailabilities' || qt === 'deviceStatuses';
-  const isLive           = qt !== 'deviceAvailabilities' || !query.historical;
+  const isLive           = !showHistorical || !query.historical;
 
   const liveMessages: Partial<Record<QueryType, string>> = {
     deviceAvailabilities:   'Showing a live snapshot. Enable Historical Data to use the time range picker.',
@@ -226,7 +260,8 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     deviceClients:          'Live client snapshot. Time range has no effect.',
     sensorReadingsLatest:   'Newest reading per sensor and metric. Time range has no effect.',
     uplinkLossLatency:      'Averages over the last 5 minutes. Time range has no effect.',
-    assuranceAlerts:        'Alerts open right now. Time range has no effect.',
+    licenseOverview:        'Current licensing. Time range has no effect.',
+    assuranceAlerts:        'Alerts open right now. Enable Historical Data for every alert that started in the time range, resolved or not.',
   };
 
   const liveMsg = isLive && liveMessages[qt];
@@ -235,6 +270,19 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
 
   return (
     <Stack gap={1} direction="column">
+      {(orgs.length > 1 || org !== '') && !(qt === 'licenseOverview' && query.allOrganizations) && (
+        <InlineField label="Organization" labelWidth={18} tooltip="Organization to query. Leave it on the default to use the data source's organization">
+          <Combobox
+            id="qe-org"
+            options={orgOpts}
+            value={org || datasource.defaultOrg || null}
+            onChange={onOrgChange}
+            createCustomValue
+            width={40}
+          />
+        </InlineField>
+      )}
+
       <InlineField label="Query Type" labelWidth={18}>
         <Combobox
           id="qe-type"
@@ -245,11 +293,19 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
         />
       </InlineField>
 
+      {qt === 'licenseOverview' && (
+        <InlineField label="All organizations" labelWidth={18} tooltip="One row per organization the API key can see, soonest expiry first">
+          <InlineSwitch id="qe-all-orgs" value={!!query.allOrganizations} onChange={onAllOrgsToggle} />
+        </InlineField>
+      )}
+
       {showHistorical && (
         <InlineField
           label="Historical Data"
           labelWidth={18}
-          tooltip="Query change history as a time series instead of a live snapshot"
+          tooltip={qt === 'assuranceAlerts'
+            ? 'Every alert that started in the time range, including resolved ones'
+            : 'Query change history as a time series instead of a live snapshot'}
         >
           <InlineSwitch id="qe-historical" value={!!query.historical} onChange={onHistoricalToggle} />
         </InlineField>

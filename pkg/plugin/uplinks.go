@@ -171,13 +171,14 @@ func alertRows(rows []json.RawMessage) []json.RawMessage {
 		Serial string `json:"serial"`
 	}
 	type alert struct {
-		StartedAt    time.Time `json:"startedAt"`
-		Severity     string    `json:"severity"`
-		Title        string    `json:"title"`
-		Description  string    `json:"description"`
-		CategoryType string    `json:"categoryType"`
-		Type         string    `json:"type"`
-		DeviceType   string    `json:"deviceType"`
+		StartedAt    time.Time  `json:"startedAt"`
+		ResolvedAt   *time.Time `json:"resolvedAt"`
+		Severity     string     `json:"severity"`
+		Title        string     `json:"title"`
+		Description  string     `json:"description"`
+		CategoryType string     `json:"categoryType"`
+		Type         string     `json:"type"`
+		DeviceType   string     `json:"deviceType"`
 		Network      struct {
 			Name string `json:"name"`
 		} `json:"network"`
@@ -186,15 +187,16 @@ func alertRows(rows []json.RawMessage) []json.RawMessage {
 		} `json:"scope"`
 	}
 	type row struct {
-		StartedAt   time.Time `json:"startedAt"`
-		Severity    string    `json:"severity"`
-		Title       string    `json:"title"`
-		NetworkName string    `json:"networkName"`
-		Devices     string    `json:"devices"`
-		Description string    `json:"description"`
-		Category    string    `json:"category"`
-		Type        string    `json:"type"`
-		DeviceType  string    `json:"deviceType"`
+		StartedAt   time.Time  `json:"startedAt"`
+		ResolvedAt  *time.Time `json:"resolvedAt,omitempty"`
+		Severity    string     `json:"severity"`
+		Title       string     `json:"title"`
+		NetworkName string     `json:"networkName"`
+		Devices     string     `json:"devices"`
+		Description string     `json:"description"`
+		Category    string     `json:"category"`
+		Type        string     `json:"type"`
+		DeviceType  string     `json:"deviceType"`
 	}
 	out := make([]row, 0, len(rows))
 	for _, raw := range rows {
@@ -206,7 +208,7 @@ func alertRows(rows []json.RawMessage) []json.RawMessage {
 		for _, d := range a.Scope.Devices {
 			names = append(names, cmp.Or(d.Name, d.Serial))
 		}
-		out = append(out, row{a.StartedAt, a.Severity, a.Title, a.Network.Name, strings.Join(names, ", "),
+		out = append(out, row{a.StartedAt, a.ResolvedAt, a.Severity, a.Title, a.Network.Name, strings.Join(names, ", "),
 			a.Description, a.CategoryType, a.Type, a.DeviceType})
 	}
 	rank := map[string]int{"critical": 0, "warning": 1, "informational": 2}

@@ -242,3 +242,49 @@ func TestRunRequiresNetworkForWirelessStats(t *testing.T) {
 		}
 	}
 }
+
+func TestRunQueriesTheChosenOrganization(t *testing.T) {
+	t.Parallel()
+	var (
+		mu    sync.Mutex
+		paths []string
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		paths = append(paths, r.URL.Path)
+		mu.Unlock()
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	t.Cleanup(server.Close)
+	ds := &DS{c: meraki.New(server.URL, "org-1", "key")}
+	now := time.Now()
+
+	for _, q := range []string{`{"queryType":"assuranceAlerts"}`, `{"queryType":"assuranceAlerts","organizationId":"org-2"}`, `{"queryType":"assuranceAlerts","organizationId":2}`} {
+		if resp := ds.run(context.Background(), dataQuery(q, now.Add(-time.Hour), now)); resp.Error != nil {
+			t.Fatal(resp.Error)
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	want := []string{"/organizations/org-1/assurance/alerts", "/organizations/org-2/assurance/alerts", "/organizations/2/assurance/alerts"}
+	if !slices.Equal(paths, want) {
+		t.Errorf("paths = %q, want %q", paths, want)
+	}
+}
+
+func TestCheckHealthNamesTheOrganization(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[{"id":"613605","name":"Acme"},{"id":457463,"name":"Lab"}]`))
+	}))
+	t.Cleanup(server.Close)
+
+	ok, _ := (&DS{c: meraki.New(server.URL, "457463", "key")}).CheckHealth(context.Background(), nil)
+	if ok.Status != backend.HealthStatusOk || ok.Message != "Connected to Lab. The API key can see 2 organizations." {
+		t.Errorf("health = %v %q", ok.Status, ok.Message)
+	}
+	bad, _ := (&DS{c: meraki.New(server.URL, "999", "key")}).CheckHealth(context.Background(), nil)
+	if bad.Status != backend.HealthStatusError || !strings.Contains(bad.Message, "Acme (613605), Lab (457463)") {
+		t.Errorf("health = %v %q", bad.Status, bad.Message)
+	}
+}

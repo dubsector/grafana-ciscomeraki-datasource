@@ -53,7 +53,24 @@
   "timepicker": {},
   "refresh": "1m",
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "name": "Meraki alerts",
+        "datasource": {
+          "type": "dubsector-ciscomeraki-datasource",
+          "uid": "${DS}"
+        },
+        "enable": true,
+        "iconColor": "red",
+        "target": {
+          "refId": "Anno",
+          "queryType": "assuranceAlerts",
+          "organizationId": "${org}",
+          "networkId": "${network}",
+          "historical": true
+        }
+      }
+    ]
   },
   "version": 1,
   "id": null,
@@ -68,6 +85,19 @@
         "hide": 0
       },
       {
+        "name": "org",
+        "type": "query",
+        "label": "Organization",
+        "datasource": {
+          "type": "dubsector-ciscomeraki-datasource",
+          "uid": "${DS}"
+        },
+        "query": "{\"queryType\":\"organizations\"}",
+        "refresh": 1,
+        "sort": 0,
+        "hide": 0
+      },
+      {
         "name": "network",
         "type": "query",
         "label": "Network",
@@ -75,7 +105,7 @@
           "type": "dubsector-ciscomeraki-datasource",
           "uid": "${DS}"
         },
-        "query": "{\"queryType\":\"networks\",\"productTypes\":[\"appliance\"]}",
+        "query": "{\"queryType\":\"networks\",\"organizationId\":\"${org}\",\"productTypes\":[\"appliance\"]}",
         "refresh": 1,
         "sort": 1,
         "hide": 0
@@ -88,7 +118,7 @@
           "type": "dubsector-ciscomeraki-datasource",
           "uid": "${DS}"
         },
-        "query": "{\"queryType\":\"devices\",\"networkId\":\"${network}\",\"productType\":\"appliance\"}",
+        "query": "{\"queryType\":\"devices\",\"organizationId\":\"${org}\",\"networkId\":\"${network}\",\"productType\":\"appliance\"}",
         "refresh": 1,
         "sort": 1,
         "hide": 0
@@ -154,6 +184,7 @@
         {
           "refId": "A",
           "queryType": "deviceAvailabilities",
+          "organizationId": "${org}",
           "networkId": "",
           "deviceSerial": "",
           "productType": "",
@@ -232,6 +263,7 @@
         {
           "refId": "A",
           "queryType": "deviceAvailabilities",
+          "organizationId": "${org}",
           "networkId": "",
           "deviceSerial": "",
           "productType": "",
@@ -310,6 +342,7 @@
         {
           "refId": "A",
           "queryType": "deviceAvailabilities",
+          "organizationId": "${org}",
           "networkId": "",
           "deviceSerial": "",
           "productType": "",
@@ -388,6 +421,7 @@
         {
           "refId": "A",
           "queryType": "deviceAvailabilities",
+          "organizationId": "${org}",
           "networkId": "",
           "deviceSerial": "",
           "productType": "",
@@ -462,6 +496,7 @@
         {
           "refId": "A",
           "queryType": "assuranceAlerts",
+          "organizationId": "${org}",
           "networkId": "",
           "deviceSerial": "",
           "productType": "",
@@ -540,6 +575,7 @@
         {
           "refId": "A",
           "queryType": "assuranceAlerts",
+          "organizationId": "${org}",
           "networkId": "",
           "deviceSerial": "",
           "productType": "",
@@ -612,6 +648,7 @@
         {
           "refId": "A",
           "queryType": "assuranceAlerts",
+          "organizationId": "${org}",
           "networkId": "",
           "deviceSerial": "",
           "productType": "",
@@ -761,6 +798,7 @@
         {
           "refId": "A",
           "queryType": "uplinkLossLatency",
+          "organizationId": "${org}",
           "networkId": "",
           "deviceSerial": "",
           "productType": "",
@@ -950,6 +988,7 @@
         {
           "refId": "A",
           "queryType": "applianceUplinkUsage",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "productType": "",
@@ -998,6 +1037,7 @@
         {
           "refId": "A",
           "queryType": "uplinkLossLatencyHistory",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "${appliance}",
           "productType": "",
@@ -1046,6 +1086,247 @@
                   "mode": "fixed",
                   "fixedColor": "red"
                 }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "type": "row",
+      "title": "Top usage",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "Top applications",
+      "description": "Applications that used the most data across the organization in the time range.",
+      "gridPos": {
+        "x": 0,
+        "y": 38,
+        "w": 12,
+        "h": 10
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "topApplications",
+          "organizationId": "${org}",
+          "networkId": "",
+          "deviceSerial": "",
+          "productType": "",
+          "historical": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "upstream": true,
+              "downstream": true,
+              "mac": true
+            },
+            "indexByName": {
+              "application": 0,
+              "total": 1,
+              "percentage": 2
+            },
+            "renameByName": {
+              "application": "Application",
+              "total": "Data",
+              "percentage": "Share"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decmbytes"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "percentage"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "type": "table",
+      "title": "Top clients",
+      "description": "Clients that used the most data across the organization in the time range. Meraki needs at least 8 hours for this list.",
+      "gridPos": {
+        "x": 12,
+        "y": 38,
+        "w": 12,
+        "h": 10
+      },
+      "datasource": {
+        "type": "dubsector-ciscomeraki-datasource",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "topClients",
+          "organizationId": "${org}",
+          "networkId": "",
+          "deviceSerial": "",
+          "productType": "",
+          "historical": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "upstream": true,
+              "downstream": true,
+              "mac": true
+            },
+            "indexByName": {
+              "name": 0,
+              "networkName": 1,
+              "total": 2,
+              "percentage": 3
+            },
+            "renameByName": {
+              "name": "Client",
+              "networkName": "Network",
+              "total": "Data",
+              "percentage": "Share"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "decmbytes"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "percentage"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 90
               }
             ]
           }
