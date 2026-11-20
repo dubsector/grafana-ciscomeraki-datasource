@@ -67,7 +67,8 @@ type fetchFunc func(context.Context, *Client) ([]json.RawMessage, error)
 func (e *e2eRun) check(t *testing.T, orgID, method string, fn fetchFunc) []json.RawMessage {
 	t.Helper()
 	full, _ := e.fetch(t, orgID, method, "", fn)
-	size := min(max(3, (len(full)+9)/10), 300)
+	// 4 is the smallest perPage every endpoint accepts (assurance alerts start at 4).
+	size := min(max(4, (len(full)+9)/10), 300)
 	paged, p := e.fetch(t, orgID, method, strconv.Itoa(size), fn)
 
 	s := e.stats[method]
@@ -192,6 +193,17 @@ func TestE2E(t *testing.T) {
 			run("SensorReadingsLatest", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 				return c.SensorReadingsLatest(ctx, "", "", "")
 			})
+			uplinkLoss := run("UplinksLossAndLatency", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.UplinksLossAndLatency(ctx)
+			})
+			for _, u := range decode[struct{ Serial, Uplink, IP string }](t, uplinkLoss) {
+				run("LossAndLatencyHistory", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+					return c.LossAndLatencyHistory(ctx, u.Serial, u.Uplink, u.IP, day0, now)
+				})
+			}
+			run("AssuranceAlerts", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.AssuranceAlerts(ctx, "")
+			})
 
 			for _, n := range nets {
 				t.Run(n.Name, func(t *testing.T) {
@@ -259,6 +271,20 @@ func TestE2E(t *testing.T) {
 						if len(lan) == 0 {
 							t.Error("ApplianceLANPorts: no LAN ports on the MX")
 						}
+						usage := run("ApplianceUplinksUsage", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+							return c.ApplianceUplinksUsage(ctx, n.ID, day0, now)
+						})
+						if len(usage) == 0 {
+							t.Error("ApplianceUplinksUsage: no usage for the MX uplinks")
+						}
+						alerts := run("AssuranceAlerts", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+							return c.AssuranceAlerts(ctx, n.ID)
+						})
+						for _, a := range decode[struct{ Network struct{ ID string } }](t, alerts) {
+							if a.Network.ID != n.ID {
+								t.Errorf("AssuranceAlerts: got network %s, want %s", a.Network.ID, n.ID)
+							}
+						}
 						vpn := run("VPNStats", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 							return c.VPNStats(ctx, day0, now, n.ID)
 						})
@@ -325,7 +351,8 @@ func TestE2E(t *testing.T) {
 		})
 	}
 
-	// Every method must run, return data, and page at least once if it can.
+	// Every method must run, return data, and page at least once if it has
+	// more than the smallest page (4 items) to split.
 	ct := reflect.TypeFor[*Client]()
 	for i := range ct.NumMethod() {
 		name := ct.Method(i).Name
@@ -335,7 +362,7 @@ func TestE2E(t *testing.T) {
 			t.Errorf("Client.%s has no call in this test; add one", name)
 		case s.items == 0:
 			t.Errorf("Client.%s returned nothing from the emulator", name)
-		case s.sendsPerPage && !s.multiPage:
+		case s.sendsPerPage && !s.multiPage && s.items > 4:
 			t.Errorf("Client.%s never needed a second page", name)
 		}
 	}

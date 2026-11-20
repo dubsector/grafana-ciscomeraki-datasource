@@ -90,6 +90,13 @@ func TestClientMatchesSpec(t *testing.T) {
 			_, err := c.SensorReadingsHistory(ctx, t0, t1, "N_1", "Q3CA-XXXX-XXXX", "temperature")
 			return err
 		},
+		"UplinksLossAndLatency": func() error { _, err := c.UplinksLossAndLatency(ctx); return err },
+		"LossAndLatencyHistory": func() error {
+			_, err := c.LossAndLatencyHistory(ctx, "Q2PN-XXXX-XXXX", "wan1", "8.8.8.8", t0, t1)
+			return err
+		},
+		"ApplianceUplinksUsage": func() error { _, err := c.ApplianceUplinksUsage(ctx, "N_1", t0, t1); return err },
+		"AssuranceAlerts":       func() error { _, err := c.AssuranceAlerts(ctx, "N_1"); return err },
 	}
 
 	ct := reflect.TypeOf(c)

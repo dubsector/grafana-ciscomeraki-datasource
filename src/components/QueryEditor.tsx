@@ -19,6 +19,7 @@ import {
   QUERY_TYPE_OPTIONS,
   QueryType,
   SENSOR_METRICS,
+  UPLINKS,
 } from '../types';
 
 type Props = QueryEditorProps<MerakiDS, MerakiQuery, MerakiDSOpts>;
@@ -191,6 +192,11 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     onRunQuery();
   }, [query, onChange, onRunQuery]);
 
+  const onUplinkChange = useCallback((opt: { value?: string } | null) => {
+    onChange({ ...query, uplink: opt?.value ?? '' });
+    onRunQuery();
+  }, [query, onChange, onRunQuery]);
+
   const onHistoricalToggle = useCallback(() => {
     onChange({ ...query, historical: !query.historical });
     onRunQuery();
@@ -205,6 +211,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
   const showDevice       = NEEDS_DEVICE.includes(qt) || optionalDevice;
   const showSensor       = qt === 'sensorReadingsLatest' || qt === 'sensorReadingsHistory';
   const showHistorical   = qt === 'deviceAvailabilities';
+  const showUplink       = qt === 'uplinkLossLatencyHistory';
   const showEventPT      = qt === 'networkEvents';
   const showDeviceFilter = qt === 'deviceAvailabilities' || qt === 'deviceStatuses';
   const isLive           = qt !== 'deviceAvailabilities' || !query.historical;
@@ -218,6 +225,8 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     networkClients:         'Live client snapshot. Time range has no effect.',
     deviceClients:          'Live client snapshot. Time range has no effect.',
     sensorReadingsLatest:   'Newest reading per sensor and metric. Time range has no effect.',
+    uplinkLossLatency:      'Averages over the last 5 minutes. Time range has no effect.',
+    assuranceAlerts:        'Alerts open right now. Time range has no effect.',
   };
 
   const liveMsg = isLive && liveMessages[qt];
@@ -305,6 +314,18 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
       {showSensor && (
         <InlineField label="Fahrenheit" labelWidth={18} tooltip="Temperature in °F instead of °C">
           <InlineSwitch id="qe-fahrenheit" value={!!query.fahrenheit} onChange={onFahrenheitToggle} />
+        </InlineField>
+      )}
+
+      {showUplink && (
+        <InlineField label="Uplink" labelWidth={18} tooltip="WAN uplink to chart, probed against 8.8.8.8">
+          <Combobox
+            id="qe-uplink"
+            options={UPLINKS}
+            value={query.uplink || 'wan1'}
+            onChange={onUplinkChange}
+            width={26}
+          />
         </InlineField>
       )}
 

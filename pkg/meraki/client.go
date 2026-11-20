@@ -319,3 +319,47 @@ func (c *Client) VPNStats(ctx context.Context, t0, t1 time.Time, networkID strin
 	}
 	return c.get(ctx, fmt.Sprintf("/organizations/%s/appliance/vpn/stats", c.orgID), p)
 }
+
+// UplinksLossAndLatency is the last five minutes of loss and latency for
+// every appliance uplink in the org, one row per uplink and probe target.
+func (c *Client) UplinksLossAndLatency(ctx context.Context) ([]json.RawMessage, error) {
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/devices/uplinksLossAndLatency", c.orgID), url.Values{"timespan": {"300"}})
+}
+
+// LossAndLatencyHistory is one uplink's loss, latency and jitter towards ip.
+func (c *Client) LossAndLatencyHistory(ctx context.Context, serial, uplink, ip string, t0, t1 time.Time) ([]json.RawMessage, error) {
+	p := url.Values{
+		"t0": {ts(t0)}, "t1": {ts(t1)}, "ip": {ip}, "uplink": {uplink},
+		"resolution": {resolution(t1.Sub(t0), 60, 600, 3600, 86400)},
+	}
+	return c.get(ctx, fmt.Sprintf("/devices/%s/lossAndLatencyHistory", serial), p)
+}
+
+// ApplianceUplinksUsage is bytes sent and received per WAN uplink per interval.
+func (c *Client) ApplianceUplinksUsage(ctx context.Context, networkID string, t0, t1 time.Time) ([]json.RawMessage, error) {
+	p := url.Values{
+		"t0": {ts(t0)}, "t1": {ts(t1)},
+		"resolution": {resolution(t1.Sub(t0), 60, 300, 600, 1800, 3600, 86400)},
+	}
+	return c.get(ctx, fmt.Sprintf("/networks/%s/appliance/uplinks/usageHistory", networkID), p)
+}
+
+// AssuranceAlerts is the org's open alerts. Empty networkID means every network.
+func (c *Client) AssuranceAlerts(ctx context.Context, networkID string) ([]json.RawMessage, error) {
+	p := url.Values{"active": {"true"}, "perPage": {"300"}, "sortBy": {"severity"}, "sortOrder": {"descending"}}
+	if networkID != "" {
+		p.Set("networkId", networkID)
+	}
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/assurance/alerts", c.orgID), p)
+}
+
+// resolution picks the finest interval, in seconds, that keeps span under
+// about 300 points.
+func resolution(span time.Duration, valid ...int) string {
+	for _, r := range valid {
+		if span/(time.Duration(r)*time.Second) <= 300 {
+			return strconv.Itoa(r)
+		}
+	}
+	return strconv.Itoa(valid[len(valid)-1])
+}
