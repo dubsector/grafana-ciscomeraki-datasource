@@ -37,6 +37,12 @@ func TestPanelsAskingTheSameThingShareOneRequest(t *testing.T) {
 	if n := hits.Load(); n != 1 {
 		t.Errorf("%d requests, want 1", n)
 	}
+	if _, err := c.ForOrg("org-2").Networks(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if n := hits.Load(); n != 2 {
+		t.Error("another organization's networks came from the cache")
+	}
 }
 
 func TestErrorsAreNotCached(t *testing.T) {

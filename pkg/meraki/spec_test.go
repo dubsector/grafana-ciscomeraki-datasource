@@ -101,7 +101,7 @@ func TestClientMatchesSpec(t *testing.T) {
 
 	ct := reflect.TypeOf(c)
 	for i := range ct.NumMethod() {
-		if name := ct.Method(i).Name; calls[name] == nil {
+		if name := ct.Method(i).Name; calls[name] == nil && !notRequests[name] {
 			t.Errorf("Client.%s has no entry in this test; add one so its endpoint is checked", name)
 		}
 	}
@@ -125,6 +125,9 @@ func TestClientMatchesSpec(t *testing.T) {
 		}
 	}
 }
+
+// notRequests are Client methods that make no API call.
+var notRequests = map[string]bool{"ForOrg": true, "OrgID": true}
 
 func checkRequest(t *testing.T, spec specData, method string, u *url.URL) {
 	t.Helper()

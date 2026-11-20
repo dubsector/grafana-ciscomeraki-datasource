@@ -39,6 +39,17 @@ func New(baseURL, orgID, apiKey string) *Client {
 	}
 }
 
+// ForOrg returns a client for another organization the same API key can
+// see. It shares the HTTP client, rate limit and cache.
+func (c *Client) ForOrg(orgID string) *Client {
+	cp := *c
+	cp.orgID = orgID
+	return &cp
+}
+
+// OrgID is the organization this client queries.
+func (c *Client) OrgID() string { return c.orgID }
+
 // get issues a GET and follows RFC-5988 Link pagination automatically.
 // Panels asking for the same thing within cacheTTL share one response.
 func (c *Client) get(ctx context.Context, path string, p url.Values) ([]json.RawMessage, error) {

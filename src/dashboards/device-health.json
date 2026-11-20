@@ -25,7 +25,7 @@
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
-        "queryType": "deviceAvailabilities", "networkId": "", "deviceSerial": "",
+        "queryType": "deviceAvailabilities", "organizationId": "${org}", "networkId": "", "deviceSerial": "",
         "productType": "", "historical": false
       }],
       "transformations": [{
@@ -53,7 +53,7 @@
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
-        "queryType": "deviceStatuses", "networkId": "", "deviceSerial": "",
+        "queryType": "deviceStatuses", "organizationId": "${org}", "networkId": "", "deviceSerial": "",
         "productType": "", "historical": false
       }],
       "transformations": [
@@ -85,6 +85,12 @@
     {
       "name": "DS", "type": "datasource", "pluginId": "dubsector-ciscomeraki-datasource",
       "label": "Data Source", "hide": 0
+    },
+    {
+      "name": "org", "type": "query", "label": "Organization",
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "query": "{\"queryType\":\"organizations\"}",
+      "refresh": 1, "sort": 0, "hide": 0
     }
   ]},
   "annotations": { "list": [] },

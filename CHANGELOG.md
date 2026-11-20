@@ -12,6 +12,7 @@
 - Sensors dashboard.
 - SD-WAN health: uplink loss and latency across the org, loss, latency and jitter history for one uplink, and uplink usage in bits per second.
 - Alerts: open organization alerts, most severe first.
+- Multiple organizations: every query can pick any organization the API key can see, and each dashboard has an Organization picker. The data source's organization stays the default.
 - Overview dashboard with device counts, open alerts, the worst WAN uplinks and uplink detail for a chosen network.
 
 ### Changes

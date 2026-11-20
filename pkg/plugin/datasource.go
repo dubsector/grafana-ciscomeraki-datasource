@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -30,9 +31,14 @@ var (
 type DS struct {
 	c *meraki.Client
 
-	mu       sync.Mutex
-	netNames nameCache
-	devNames nameCache
+	mu    sync.Mutex
+	names map[string]*orgNames
+}
+
+// orgNames holds one organization's name lookups.
+type orgNames struct {
+	networks nameCache
+	devices  nameCache
 }
 
 type nameCache struct {
@@ -40,14 +46,36 @@ type nameCache struct {
 	exp   time.Time
 }
 
+// client is the data source's client, pointed at org when one is given.
+func (d *DS) client(org string) *meraki.Client {
+	if org == "" {
+		return d.c
+	}
+	return d.c.ForOrg(org)
+}
+
+func (d *DS) orgNames(org string) *orgNames {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.names == nil {
+		d.names = map[string]*orgNames{}
+	}
+	n := d.names[org]
+	if n == nil {
+		n = &orgNames{}
+		d.names[org] = n
+	}
+	return n
+}
+
 // networkNames maps network IDs to names.
-func (d *DS) networkNames(ctx context.Context) map[string]string {
-	return d.cachedNames(ctx, &d.netNames, d.c.Networks, "id")
+func (d *DS) networkNames(ctx context.Context, c *meraki.Client) map[string]string {
+	return d.cachedNames(ctx, &d.orgNames(c.OrgID()).networks, c.Networks, "id")
 }
 
 // deviceNames maps device serials to names.
-func (d *DS) deviceNames(ctx context.Context) map[string]string {
-	return d.cachedNames(ctx, &d.devNames, d.c.Devices, "serial")
+func (d *DS) deviceNames(ctx context.Context, c *meraki.Client) map[string]string {
+	return d.cachedNames(ctx, &d.orgNames(c.OrgID()).devices, c.Devices, "serial")
 }
 
 // cachedNames fetches at most once a minute. A failed refresh keeps the
@@ -163,11 +191,18 @@ func (d *DS) CheckHealth(ctx context.Context, _ *backend.CheckHealthRequest) (*b
 func (d *DS) CallResource(ctx context.Context, req *backend.CallResourceRequest, send backend.CallResourceResponseSender) error {
 	var rows []json.RawMessage
 	var err error
+	var org string
+	if u, e := url.Parse(req.URL); e == nil {
+		org = u.Query().Get("organizationId")
+	}
+	c := d.client(org)
 	switch req.Path {
+	case "organizations":
+		rows, err = c.Organizations(ctx)
 	case "networks":
-		rows, err = d.c.Networks(ctx)
+		rows, err = c.Networks(ctx)
 	case "devices":
-		rows, err = d.c.Devices(ctx)
+		rows, err = c.Devices(ctx)
 	default:
 		return send.Send(&backend.CallResourceResponse{Status: http.StatusNotFound})
 	}
@@ -185,14 +220,15 @@ func (d *DS) CallResource(ctx context.Context, req *backend.CallResourceRequest,
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 type query struct {
-	QueryType    string `json:"queryType"`
-	NetworkID    string `json:"networkId"`
-	DeviceSerial string `json:"deviceSerial"`
-	ProductType  string `json:"productType"`
-	Historical   bool   `json:"historical"`
-	Metric       string `json:"metric"`
-	Fahrenheit   bool   `json:"fahrenheit"`
-	Uplink       string `json:"uplink"`
+	QueryType      string `json:"queryType"`
+	OrganizationID orgID  `json:"organizationId"`
+	NetworkID      string `json:"networkId"`
+	DeviceSerial   string `json:"deviceSerial"`
+	ProductType    string `json:"productType"`
+	Historical     bool   `json:"historical"`
+	Metric         string `json:"metric"`
+	Fahrenheit     bool   `json:"fahrenheit"`
+	Uplink         string `json:"uplink"`
 }
 
 func (d *DS) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
@@ -277,112 +313,113 @@ func timeWindow(q query) (meraki.Window, bool) {
 }
 
 func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.RawMessage, error) {
+	c := d.client(string(q.OrganizationID))
 	switch q.QueryType {
 	case "deviceAvailabilities":
-		fetch := d.c.DeviceAvailabilities
+		fetch := c.DeviceAvailabilities
 		if q.Historical {
 			fetch = func(ctx context.Context, pt, nid string) ([]json.RawMessage, error) {
-				return d.c.DeviceAvailabilityHistory(ctx, t0, t1, pt, nid)
+				return c.DeviceAvailabilityHistory(ctx, t0, t1, pt, nid)
 			}
 		}
 		rows, err := fetch(ctx, q.ProductType, q.NetworkID)
 		if err != nil {
 			return nil, err
 		}
-		return withNetworkNames(rows, d.networkNames(ctx)), nil
+		return withNetworkNames(rows, d.networkNames(ctx, c)), nil
 	case "deviceStatuses":
-		rows, err := d.c.DeviceStatuses(ctx, q.ProductType, q.NetworkID)
+		rows, err := c.DeviceStatuses(ctx, q.ProductType, q.NetworkID)
 		if err != nil {
 			return nil, err
 		}
-		return withNetworkNames(rows, d.networkNames(ctx)), nil
+		return withNetworkNames(rows, d.networkNames(ctx, c)), nil
 	case "networkEvents":
 		if q.NetworkID == "" {
 			return nil, fmt.Errorf("networkId required for networkEvents")
 		}
-		return d.c.NetworkEvents(ctx, q.NetworkID, q.ProductType, t0, t1)
+		return c.NetworkEvents(ctx, q.NetworkID, q.ProductType, t0, t1)
 	case "securityEvents":
 		if q.NetworkID == "" {
 			return nil, fmt.Errorf("networkId required for securityEvents")
 		}
-		return d.c.SecurityEvents(ctx, q.NetworkID, t0, t1)
+		return c.SecurityEvents(ctx, q.NetworkID, t0, t1)
 	case "networkClients":
 		if q.NetworkID == "" {
 			return nil, fmt.Errorf("networkId required for networkClients")
 		}
-		return d.c.NetworkClients(ctx, q.NetworkID)
+		return c.NetworkClients(ctx, q.NetworkID)
 	case "deviceClients":
 		if q.DeviceSerial == "" {
 			return nil, fmt.Errorf("deviceSerial required for deviceClients")
 		}
-		return d.c.DeviceClients(ctx, q.DeviceSerial)
+		return c.DeviceClients(ctx, q.DeviceSerial)
 	case "wirelessLatencyStats":
 		if q.NetworkID == "" {
 			return nil, fmt.Errorf("networkId required for wirelessLatencyStats")
 		}
-		return d.c.WirelessLatencyStats(ctx, q.NetworkID, t0, t1)
+		return c.WirelessLatencyStats(ctx, q.NetworkID, t0, t1)
 	case "wirelessConnectionStats":
 		if q.NetworkID == "" {
 			return nil, fmt.Errorf("networkId required for wirelessConnectionStats")
 		}
-		return d.c.WirelessConnectionStats(ctx, q.NetworkID, t0, t1)
+		return c.WirelessConnectionStats(ctx, q.NetworkID, t0, t1)
 	case "wirelessClientCount":
 		if q.NetworkID == "" {
 			return nil, fmt.Errorf("networkId required for wirelessClientCount")
 		}
-		return d.c.WirelessClientCount(ctx, q.NetworkID, t0, t1)
+		return c.WirelessClientCount(ctx, q.NetworkID, t0, t1)
 	case "switchPortStatuses":
 		if q.DeviceSerial == "" {
 			return nil, fmt.Errorf("deviceSerial required for switchPortStatuses")
 		}
-		return d.c.SwitchPortStatuses(ctx, q.DeviceSerial)
+		return c.SwitchPortStatuses(ctx, q.DeviceSerial)
 	case "applianceLanPorts":
 		if q.NetworkID == "" {
 			return nil, fmt.Errorf("networkId required for applianceLanPorts")
 		}
-		return d.c.ApplianceLANPorts(ctx, q.NetworkID)
+		return c.ApplianceLANPorts(ctx, q.NetworkID)
 	case "applianceUplinkStatuses":
-		rows, err := d.c.ApplianceUplinkStatuses(ctx, q.NetworkID)
+		rows, err := c.ApplianceUplinkStatuses(ctx, q.NetworkID)
 		if err != nil {
 			return nil, err
 		}
 		return explode(rows, "uplinks"), nil
 	case "vpnStats":
-		rows, err := d.c.VPNStats(ctx, t0, t1, q.NetworkID)
+		rows, err := c.VPNStats(ctx, t0, t1, q.NetworkID)
 		if err != nil {
 			return nil, err
 		}
 		return vpnPeerRows(rows), nil
 	case "sensorReadingsLatest":
-		rows, err := d.c.SensorReadingsLatest(ctx, q.NetworkID, q.DeviceSerial, q.Metric)
+		rows, err := c.SensorReadingsLatest(ctx, q.NetworkID, q.DeviceSerial, q.Metric)
 		if err != nil {
 			return nil, err
 		}
-		return sensorRows(rows, d.deviceNames(ctx), q.Fahrenheit), nil
+		return sensorRows(rows, d.deviceNames(ctx, c), q.Fahrenheit), nil
 	case "sensorReadingsHistory":
-		rows, err := d.c.SensorReadingsHistory(ctx, t0, t1, q.NetworkID, q.DeviceSerial, q.Metric)
+		rows, err := c.SensorReadingsHistory(ctx, t0, t1, q.NetworkID, q.DeviceSerial, q.Metric)
 		if err != nil {
 			return nil, err
 		}
-		return sensorRows(rows, d.deviceNames(ctx), q.Fahrenheit), nil
+		return sensorRows(rows, d.deviceNames(ctx, c), q.Fahrenheit), nil
 	case "uplinkLossLatency":
-		rows, err := d.c.UplinksLossAndLatency(ctx)
+		rows, err := c.UplinksLossAndLatency(ctx)
 		if err != nil {
 			return nil, err
 		}
-		return uplinkSummaryRows(rows, q.NetworkID, d.networkNames(ctx), d.deviceNames(ctx)), nil
+		return uplinkSummaryRows(rows, q.NetworkID, d.networkNames(ctx, c), d.deviceNames(ctx, c)), nil
 	case "uplinkLossLatencyHistory":
 		if q.DeviceSerial == "" {
 			return nil, fmt.Errorf("deviceSerial required for uplinkLossLatencyHistory")
 		}
-		return d.c.LossAndLatencyHistory(ctx, q.DeviceSerial, uplinkOrDefault(q.Uplink), defaultProbeIP, t0, t1)
+		return c.LossAndLatencyHistory(ctx, q.DeviceSerial, uplinkOrDefault(q.Uplink), defaultProbeIP, t0, t1)
 	case "applianceUplinkUsage":
 		if q.NetworkID == "" {
 			return nil, fmt.Errorf("networkId required for applianceUplinkUsage")
 		}
-		return d.c.ApplianceUplinksUsage(ctx, q.NetworkID, t0, t1)
+		return c.ApplianceUplinksUsage(ctx, q.NetworkID, t0, t1)
 	case "assuranceAlerts":
-		rows, err := d.c.AssuranceAlerts(ctx, q.NetworkID)
+		rows, err := c.AssuranceAlerts(ctx, q.NetworkID)
 		if err != nil {
 			return nil, err
 		}

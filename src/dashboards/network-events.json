@@ -25,7 +25,7 @@
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
-        "queryType": "networkEvents", "networkId": "${network}",
+        "queryType": "networkEvents", "organizationId": "${org}", "networkId": "${network}",
         "productType": "${product_type}", "deviceSerial": "", "historical": false
       }],
       "options": { "reduceOptions": { "calcs": ["count"], "fields": "/^type$/" }, "colorMode": "background", "graphMode": "none" },
@@ -39,7 +39,7 @@
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
-        "queryType": "networkEvents", "networkId": "${network}",
+        "queryType": "networkEvents", "organizationId": "${org}", "networkId": "${network}",
         "productType": "${product_type}", "deviceSerial": "", "historical": false
       }],
       "options": { "sortBy": [{ "displayName": "occurredAt", "desc": true }] },
@@ -55,7 +55,7 @@
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
-        "queryType": "securityEvents", "networkId": "${network}",
+        "queryType": "securityEvents", "organizationId": "${org}", "networkId": "${network}",
         "productType": "", "deviceSerial": "", "historical": false
       }],
       "options": { "sortBy": [{ "displayName": "ts", "desc": true }] },
@@ -65,15 +65,21 @@
   "templating": { "list": [
     { "name": "DS", "type": "datasource", "pluginId": "dubsector-ciscomeraki-datasource", "label": "Data Source", "hide": 0 },
     {
+      "name": "org", "type": "query", "label": "Organization",
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "query": "{\"queryType\":\"organizations\"}",
+      "refresh": 1, "sort": 0, "hide": 0
+    },
+    {
       "name": "network", "type": "query", "label": "Network",
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
-      "query": "{\"queryType\":\"networkEvents\"}",
+      "query": "{\"queryType\":\"networkEvents\",\"organizationId\":\"${org}\"}",
       "refresh": 2, "sort": 1, "hide": 0
     },
     {
       "name": "product_type", "type": "query", "label": "Product",
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
-      "query": "{\"queryType\":\"eventProductTypes\",\"networkId\":\"${network}\"}",
+      "query": "{\"queryType\":\"eventProductTypes\",\"organizationId\":\"${org}\",\"networkId\":\"${network}\"}",
       "refresh": 2, "sort": 1, "hide": 0
     }
   ]},
