@@ -1,6 +1,6 @@
-import React, { ChangeEvent, FocusEvent } from 'react';
+import React, { ChangeEvent } from 'react';
 import { DataSourcePluginOptionsEditorProps } from '@grafana/data';
-import { Field, Input, SecretInput, FieldSet } from '@grafana/ui';
+import { Combobox, Field, Input, SecretInput, FieldSet } from '@grafana/ui';
 
 import { MerakiDSOpts, MerakiSecureOpts } from '../types';
 
@@ -8,10 +8,14 @@ type Props = DataSourcePluginOptionsEditorProps<MerakiDSOpts, MerakiSecureOpts>;
 
 const DEFAULT_URL = 'https://api.meraki.com/api/v1';
 
-const REGIONAL_URLS = [
-  'Global:  https://api.meraki.com/api/v1',
-  'India:   https://api.in.meraki.com/api/v1',
-  'FedRAMP: https://api.gov.meraki.com/api/v1',
+// Each Meraki region has its own API host, and the global host refuses
+// organizations from other regions.
+const REGIONS = [
+  { label: 'Global (api.meraki.com)',             value: DEFAULT_URL },
+  { label: 'Canada (api.meraki.ca)',              value: 'https://api.meraki.ca/api/v1' },
+  { label: 'China (api.meraki.cn)',               value: 'https://api.meraki.cn/api/v1' },
+  { label: 'India (api.meraki.in)',               value: 'https://api.meraki.in/api/v1' },
+  { label: 'US Government (api.gov-meraki.com)',  value: 'https://api.gov-meraki.com/api/v1' },
 ];
 
 export function ConfigEditor({ options, onOptionsChange }: Props) {
@@ -24,18 +28,16 @@ export function ConfigEditor({ options, onOptionsChange }: Props) {
   return (
     <FieldSet label="Connection">
       <Field
-        label="Base URL"
-        description={`Meraki Dashboard API base URL. Regional options: ${REGIONAL_URLS.join(' | ')}`}
+        label="Region"
+        description="The Meraki region your dashboard is in. Pick a custom URL for a proxy or a test server."
       >
-        <Input
+        <Combobox
           id="cfg-base-url"
           width={50}
-          value={jsonData?.baseUrl ?? ''}
-          placeholder={DEFAULT_URL}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => patchJson('baseUrl', e.target.value)}
-          onBlur={(e: FocusEvent<HTMLInputElement>) => {
-            if (!e.target.value.trim()) patchJson('baseUrl', DEFAULT_URL);
-          }}
+          options={REGIONS}
+          value={jsonData?.baseUrl || DEFAULT_URL}
+          createCustomValue
+          onChange={opt => patchJson('baseUrl', opt?.value || DEFAULT_URL)}
         />
       </Field>
 

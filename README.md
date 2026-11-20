@@ -66,7 +66,7 @@ In Grafana, add a new datasource of type **Cisco Meraki** and fill in:
 
 | Field | Description |
 |---|---|
-| Base URL | Meraki API base URL. Defaults to `https://api.meraki.com/api/v1`. Change for India (`api.in.meraki.com`) or FedRAMP (`api.gov.meraki.com`) regions. |
+| Region | The Meraki region your dashboard is in: Global (`api.meraki.com`), Canada (`api.meraki.ca`), China (`api.meraki.cn`), India (`api.meraki.in`) or US Government (`api.gov-meraki.com`). A custom URL also works. |
 | Default organization ID | The organization queries use unless they pick another one, found under **Organization → Settings** in the Meraki dashboard. |
 | API Key | Your Dashboard API key. Generate one under **My Profile → API access**. |
 

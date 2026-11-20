@@ -271,3 +271,20 @@ func TestRunQueriesTheChosenOrganization(t *testing.T) {
 		t.Errorf("paths = %q, want %q", paths, want)
 	}
 }
+
+func TestCheckHealthNamesTheOrganization(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[{"id":"613605","name":"Acme"},{"id":457463,"name":"Lab"}]`))
+	}))
+	t.Cleanup(server.Close)
+
+	ok, _ := (&DS{c: meraki.New(server.URL, "457463", "key")}).CheckHealth(context.Background(), nil)
+	if ok.Status != backend.HealthStatusOk || ok.Message != "Connected to Lab. The API key can see 2 organizations." {
+		t.Errorf("health = %v %q", ok.Status, ok.Message)
+	}
+	bad, _ := (&DS{c: meraki.New(server.URL, "999", "key")}).CheckHealth(context.Background(), nil)
+	if bad.Status != backend.HealthStatusError || !strings.Contains(bad.Message, "Acme (613605), Lab (457463)") {
+		t.Errorf("health = %v %q", bad.Status, bad.Message)
+	}
+}

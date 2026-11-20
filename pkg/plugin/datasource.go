@@ -179,11 +179,50 @@ func (d *DS) Dispose() {}
 
 // ── Health ────────────────────────────────────────────────────────────────────
 
+// CheckHealth also makes sure the API key can see the default organization,
+// since a key from another region or account connects but returns nothing.
 func (d *DS) CheckHealth(ctx context.Context, _ *backend.CheckHealthRequest) (*backend.CheckHealthResult, error) {
-	if _, err := d.c.Organizations(ctx); err != nil {
-		return &backend.CheckHealthResult{Status: backend.HealthStatusError, Message: err.Error()}, nil
+	fail := func(msg string) (*backend.CheckHealthResult, error) {
+		return &backend.CheckHealthResult{Status: backend.HealthStatusError, Message: msg}, nil
 	}
-	return &backend.CheckHealthResult{Status: backend.HealthStatusOk, Message: "Connected to Meraki API"}, nil
+	rows, err := d.c.Organizations(ctx)
+	if err != nil {
+		return fail(err.Error())
+	}
+	type org struct {
+		ID   orgID  `json:"id"`
+		Name string `json:"name"`
+	}
+	var orgs []org
+	for _, r := range rows {
+		var o org
+		if json.Unmarshal(r, &o) == nil {
+			orgs = append(orgs, o)
+		}
+	}
+	if len(orgs) == 0 {
+		return fail("The API key works but can see no organizations. Check that the region matches your Meraki dashboard.")
+	}
+	plural := "s"
+	if len(orgs) == 1 {
+		plural = ""
+	}
+	for _, o := range orgs {
+		if string(o.ID) == d.c.OrgID() {
+			return &backend.CheckHealthResult{
+				Status:  backend.HealthStatusOk,
+				Message: fmt.Sprintf("Connected to %s. The API key can see %d organization%s.", o.Name, len(orgs), plural),
+			}, nil
+		}
+	}
+	names := make([]string, 0, min(len(orgs), 5))
+	for _, o := range orgs[:min(len(orgs), 5)] {
+		names = append(names, fmt.Sprintf("%s (%s)", o.Name, o.ID))
+	}
+	if len(orgs) > 5 {
+		names = append(names, fmt.Sprintf("and %d more", len(orgs)-5))
+	}
+	return fail(fmt.Sprintf("The API key can't see organization %q. It can see %s.", d.c.OrgID(), strings.Join(names, ", ")))
 }
 
 // ── Resources (dropdown data) ─────────────────────────────────────────────────
