@@ -16,6 +16,7 @@
 
 ### Changes
 
+- Requests are paced to Meraki's limit of 10 a second per organization, so a busy dashboard no longer runs into rate limit errors. Panels asking for the same data within 30 seconds share one response.
 - Built with Grafana's standard `create-plugin` tooling. The release zip now includes the README, LICENSE and CHANGELOG.
 - The end-to-end test runs against the emulator's release image.
 
