@@ -31,6 +31,7 @@ Monitor Cisco Meraki networks in Grafana: device health, network and security ev
 - Sensor queries can be narrowed to a network, a sensor and a metric. Each reading has one numeric value: door open, water present and similar switches are 1 or 0, and temperature is in °C unless the Fahrenheit switch is on. Button presses aren't included
 - API key stored securely in Grafana's encrypted config
 - Automatic pagination and retry with exponential backoff
+- Requests are paced to Meraki's limit of 10 a second per organization, and panels asking for the same data within 30 seconds share one response
 - Time ranges are trimmed to each Meraki endpoint's limits (for example 7 days per request for wireless stats), with a notice on the panel when that happens
 - 60-second TTL cache for network/device dropdown lists
 
