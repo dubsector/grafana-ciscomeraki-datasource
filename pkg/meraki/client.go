@@ -118,7 +118,7 @@ func (c *Client) fetch(ctx context.Context, u string) ([]byte, string, error) {
 			}
 			delay *= 2
 		case status >= 400:
-			return nil, "", fmt.Errorf("meraki: HTTP %d: %s", status, string(body))
+			return nil, "", fmt.Errorf("meraki: HTTP %d: %s", status, errorText(body))
 		default:
 			return body, next, nil
 		}
@@ -150,6 +150,17 @@ func (c *Client) do(ctx context.Context, u string) (body []byte, next string, st
 		}
 	}
 	return body, nextLink(resp.Header.Get("Link")), resp.StatusCode, retryAfter, nil
+}
+
+// errorText reads Meraki's {"errors": [...]} body, or returns it as is.
+func errorText(body []byte) string {
+	var e struct {
+		Errors []string `json:"errors"`
+	}
+	if json.Unmarshal(body, &e) == nil && len(e.Errors) > 0 {
+		return strings.Join(e.Errors, "; ")
+	}
+	return strings.TrimSpace(string(body))
 }
 
 // nextLink returns the rel=next URL from a Link header, or "" on the last page.
@@ -393,4 +404,11 @@ func (c *Client) AlertHistory(ctx context.Context, networkID string, t0, t1 time
 		p.Set("networkId", networkID)
 	}
 	return c.get(ctx, fmt.Sprintf("/organizations/%s/assurance/alerts", c.orgID), p)
+}
+
+// LicensesOverview is one object whose shape depends on the licensing
+// model: co-termination has status and expirationDate, per-device has
+// licenseCount and states.
+func (c *Client) LicensesOverview(ctx context.Context) ([]json.RawMessage, error) {
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/licenses/overview", c.orgID), nil)
 }

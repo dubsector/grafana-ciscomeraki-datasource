@@ -265,6 +265,9 @@ type query struct {
 	DeviceSerial   string `json:"deviceSerial"`
 	ProductType    string `json:"productType"`
 	Historical     bool   `json:"historical"`
+	// AllOrganizations runs an organization level query for every
+	// organization the API key can see.
+	AllOrganizations bool `json:"allOrganizations"`
 	// Annotation asks for Grafana annotation fields instead of a table.
 	Annotation bool   `json:"annotation"`
 	Metric     string `json:"metric"`
@@ -491,6 +494,22 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 			return nil, err
 		}
 		return alertRows(rows), nil
+	case "licenseOverview":
+		raw, err := c.Organizations(ctx)
+		if err != nil {
+			return nil, err
+		}
+		var orgs []orgRef
+		for _, r := range raw {
+			var o orgRef
+			if json.Unmarshal(r, &o) == nil && (q.AllOrganizations || string(o.ID) == c.OrgID()) {
+				orgs = append(orgs, o)
+			}
+		}
+		if len(orgs) == 0 {
+			orgs = []orgRef{{ID: orgID(c.OrgID())}}
+		}
+		return licenseRows(ctx, c, orgs, time.Now()), nil
 	default:
 		return nil, fmt.Errorf("unknown queryType: %s", q.QueryType)
 	}
@@ -501,7 +520,7 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 var timeFieldNames = map[string]bool{
 	"ts": true, "occurredAt": true, "startTs": true, "endTs": true,
 	"lastReportedAt": true, "updatedAt": true, "createdAt": true, "lastSeenAt": true,
-	"startedAt": true,
+	"startedAt": true, "resolvedAt": true, "expirationDate": true,
 }
 
 func buildFrame(name string, rows []json.RawMessage) (*data.Frame, error) {

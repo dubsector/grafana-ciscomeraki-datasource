@@ -226,6 +226,11 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     onRunQuery();
   }, [query, onChange, onRunQuery]);
 
+  const onAllOrgsToggle = useCallback(() => {
+    onChange({ ...query, allOrganizations: !query.allOrganizations });
+    onRunQuery();
+  }, [query, onChange, onRunQuery]);
+
   const onHistoricalToggle = useCallback(() => {
     onChange({ ...query, historical: !query.historical });
     onRunQuery();
@@ -255,6 +260,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     deviceClients:          'Live client snapshot. Time range has no effect.',
     sensorReadingsLatest:   'Newest reading per sensor and metric. Time range has no effect.',
     uplinkLossLatency:      'Averages over the last 5 minutes. Time range has no effect.',
+    licenseOverview:        'Current licensing. Time range has no effect.',
     assuranceAlerts:        'Alerts open right now. Enable Historical Data for every alert that started in the time range, resolved or not.',
   };
 
@@ -264,7 +270,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
 
   return (
     <Stack gap={1} direction="column">
-      {(orgs.length > 1 || org !== '') && (
+      {(orgs.length > 1 || org !== '') && !(qt === 'licenseOverview' && query.allOrganizations) && (
         <InlineField label="Organization" labelWidth={18} tooltip="Organization to query. Leave it on the default to use the data source's organization">
           <Combobox
             id="qe-org"
@@ -286,6 +292,12 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
           width={32}
         />
       </InlineField>
+
+      {qt === 'licenseOverview' && (
+        <InlineField label="All organizations" labelWidth={18} tooltip="One row per organization the API key can see, soonest expiry first">
+          <InlineSwitch id="qe-all-orgs" value={!!query.allOrganizations} onChange={onAllOrgsToggle} />
+        </InlineField>
+      )}
 
       {showHistorical && (
         <InlineField

@@ -67,6 +67,11 @@
         },
         {
             "type": "dashboard",
+            "name": "Meraki - Organizations",
+            "path": "dashboards/organizations.json"
+        },
+        {
+            "type": "dashboard",
             "name": "Meraki - Network Events",
             "path": "dashboards/network-events.json"
         },
