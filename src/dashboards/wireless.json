@@ -26,7 +26,7 @@
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
-        "queryType": "deviceAvailabilities", "networkId": "${network}",
+        "queryType": "deviceAvailabilities", "organizationId": "${org}", "networkId": "${network}",
         "productType": "wireless", "deviceSerial": "", "historical": false
       }],
       "transformations": [{
@@ -54,7 +54,7 @@
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
-        "queryType": "deviceStatuses", "networkId": "${network}",
+        "queryType": "deviceStatuses", "organizationId": "${org}", "networkId": "${network}",
         "productType": "wireless", "deviceSerial": "", "historical": false
       }],
       "transformations": [
@@ -93,7 +93,7 @@
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
       "targets": [{
         "refId": "A",
-        "queryType": "wirelessClientCount", "networkId": "${network}",
+        "queryType": "wirelessClientCount", "organizationId": "${org}", "networkId": "${network}",
         "productType": "", "deviceSerial": "", "historical": false
       }],
       "fieldConfig": {
@@ -110,7 +110,7 @@
       "id": 7, "type": "stat", "title": "Background Latency (avg ms)",
       "gridPos": { "x": 0, "y": 19, "w": 12, "h": 4 },
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
-      "targets": [{ "refId": "A", "queryType": "wirelessLatencyStats", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
+      "targets": [{ "refId": "A", "queryType": "wirelessLatencyStats", "organizationId": "${org}", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
       "options": { "reduceOptions": { "calcs": ["mean"], "fields": "/^backgroundTraffic\\.avg$/" } },
       "fieldConfig": { "defaults": { "unit": "ms", "color": { "mode": "thresholds" },
         "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 150 }] }
@@ -120,7 +120,7 @@
       "id": 8, "type": "stat", "title": "Best Effort Latency (avg ms)",
       "gridPos": { "x": 12, "y": 19, "w": 12, "h": 4 },
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
-      "targets": [{ "refId": "A", "queryType": "wirelessLatencyStats", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
+      "targets": [{ "refId": "A", "queryType": "wirelessLatencyStats", "organizationId": "${org}", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
       "options": { "reduceOptions": { "calcs": ["mean"], "fields": "/^bestEffortTraffic\\.avg$/" } },
       "fieldConfig": { "defaults": { "unit": "ms", "color": { "mode": "thresholds" },
         "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 150 }] }
@@ -135,7 +135,7 @@
       "description": "Connection attempts in the time range. Failed attempts are counted at the stage where they stopped.",
       "gridPos": { "x": 0, "y": 24, "w": 24, "h": 5 },
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
-      "targets": [{ "refId": "A", "queryType": "wirelessConnectionStats", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
+      "targets": [{ "refId": "A", "queryType": "wirelessConnectionStats", "organizationId": "${org}", "networkId": "${network}", "productType": "", "deviceSerial": "", "historical": false }],
       "transformations": [
         { "id": "calculateField", "options": {
           "mode": "reduceRow", "reduce": { "reducer": "sum", "include": ["assoc", "auth", "dhcp", "dns", "success"] },
@@ -183,9 +183,15 @@
   "templating": { "list": [
     { "name": "DS", "type": "datasource", "pluginId": "dubsector-ciscomeraki-datasource", "label": "Data Source", "hide": 0 },
     {
+      "name": "org", "type": "query", "label": "Organization",
+      "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
+      "query": "{\"queryType\":\"organizations\"}",
+      "refresh": 1, "sort": 0, "hide": 0
+    },
+    {
       "name": "network", "type": "query", "label": "Network",
       "datasource": { "type": "dubsector-ciscomeraki-datasource", "uid": "${DS}" },
-      "query": "{\"queryType\":\"wirelessClientCount\"}",
+      "query": "{\"queryType\":\"wirelessClientCount\",\"organizationId\":\"${org}\"}",
       "refresh": 1, "sort": 1, "hide": 0
     }
   ]},

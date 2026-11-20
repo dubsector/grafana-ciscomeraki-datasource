@@ -90,6 +90,7 @@
         {
           "refId": "A",
           "queryType": "sensorReadingsLatest",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "metric": "",
@@ -161,6 +162,7 @@
         {
           "refId": "A",
           "queryType": "sensorReadingsLatest",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "metric": "door",
@@ -220,6 +222,7 @@
         {
           "refId": "A",
           "queryType": "sensorReadingsLatest",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "metric": "water",
@@ -292,6 +295,7 @@
         {
           "refId": "A",
           "queryType": "sensorReadingsHistory",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "metric": "temperature",
@@ -339,6 +343,7 @@
         {
           "refId": "A",
           "queryType": "sensorReadingsHistory",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "metric": "humidity",
@@ -386,6 +391,7 @@
         {
           "refId": "A",
           "queryType": "sensorReadingsHistory",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "metric": "door",
@@ -455,6 +461,7 @@
         {
           "refId": "A",
           "queryType": "sensorReadingsHistory",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "metric": "indoorAirQuality",
@@ -504,6 +511,7 @@
         {
           "refId": "A",
           "queryType": "sensorReadingsHistory",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "metric": "co2",
@@ -551,6 +559,7 @@
         {
           "refId": "A",
           "queryType": "sensorReadingsHistory",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "metric": "pm25",
@@ -598,6 +607,7 @@
         {
           "refId": "A",
           "queryType": "sensorReadingsHistory",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "metric": "noise",
@@ -645,6 +655,7 @@
         {
           "refId": "A",
           "queryType": "sensorReadingsHistory",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "metric": "realPower",
@@ -692,6 +703,7 @@
         {
           "refId": "A",
           "queryType": "sensorReadingsHistory",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "metric": "battery",
@@ -734,6 +746,19 @@
         "hide": 0
       },
       {
+        "name": "org",
+        "type": "query",
+        "label": "Organization",
+        "datasource": {
+          "type": "dubsector-ciscomeraki-datasource",
+          "uid": "${DS}"
+        },
+        "query": "{\"queryType\":\"organizations\"}",
+        "refresh": 1,
+        "sort": 0,
+        "hide": 0
+      },
+      {
         "name": "network",
         "type": "query",
         "label": "Network",
@@ -741,7 +766,7 @@
           "type": "dubsector-ciscomeraki-datasource",
           "uid": "${DS}"
         },
-        "query": "{\"queryType\":\"sensorReadingsLatest\"}",
+        "query": "{\"queryType\":\"sensorReadingsLatest\",\"organizationId\":\"${org}\"}",
         "refresh": 2,
         "sort": 1,
         "hide": 0

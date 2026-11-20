@@ -78,6 +78,7 @@
         {
           "refId": "A",
           "queryType": "deviceStatuses",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "productType": "switch",
           "deviceSerial": "",
@@ -153,7 +154,7 @@
                 "value": [
                   {
                     "title": "Show ports",
-                    "url": "/d/${__dashboard.uid}?${DS:queryparam}&${network:queryparam}&var-switch_serial=${__data.fields.serial}&${__url_time_range}"
+                    "url": "/d/${__dashboard.uid}?${DS:queryparam}&${org:queryparam}&${network:queryparam}&var-switch_serial=${__data.fields.serial}&${__url_time_range}"
                   }
                 ]
               }
@@ -232,6 +233,7 @@
         {
           "refId": "A",
           "queryType": "switchPortStatuses",
+          "organizationId": "${org}",
           "deviceSerial": "${switch_serial}",
           "networkId": "${network}",
           "productType": "",
@@ -310,6 +312,7 @@
         {
           "refId": "A",
           "queryType": "switchPortStatuses",
+          "organizationId": "${org}",
           "deviceSerial": "${switch_serial}",
           "networkId": "${network}",
           "productType": "",
@@ -388,6 +391,7 @@
         {
           "refId": "A",
           "queryType": "switchPortStatuses",
+          "organizationId": "${org}",
           "deviceSerial": "${switch_serial}",
           "networkId": "${network}",
           "productType": "",
@@ -443,6 +447,7 @@
         {
           "refId": "A",
           "queryType": "switchPortStatuses",
+          "organizationId": "${org}",
           "deviceSerial": "${switch_serial}",
           "networkId": "${network}",
           "productType": "",
@@ -498,6 +503,7 @@
         {
           "refId": "A",
           "queryType": "switchPortStatuses",
+          "organizationId": "${org}",
           "deviceSerial": "${switch_serial}",
           "networkId": "${network}",
           "productType": "",
@@ -696,6 +702,19 @@
         "hide": 0
       },
       {
+        "name": "org",
+        "type": "query",
+        "label": "Organization",
+        "datasource": {
+          "type": "dubsector-ciscomeraki-datasource",
+          "uid": "${DS}"
+        },
+        "query": "{\"queryType\":\"organizations\"}",
+        "refresh": 1,
+        "sort": 0,
+        "hide": 0
+      },
+      {
         "name": "network",
         "type": "query",
         "label": "Network",
@@ -703,7 +722,7 @@
           "type": "dubsector-ciscomeraki-datasource",
           "uid": "${DS}"
         },
-        "query": "{\"queryType\":\"networks\",\"productTypes\":[\"switch\"]}",
+        "query": "{\"queryType\":\"networks\",\"organizationId\":\"${org}\",\"productTypes\":[\"switch\"]}",
         "refresh": 1,
         "sort": 1,
         "hide": 0
@@ -716,7 +735,7 @@
           "type": "dubsector-ciscomeraki-datasource",
           "uid": "${DS}"
         },
-        "query": "{\"queryType\":\"devices\",\"networkId\":\"${network}\",\"productType\":\"switch\"}",
+        "query": "{\"queryType\":\"devices\",\"organizationId\":\"${org}\",\"networkId\":\"${network}\",\"productType\":\"switch\"}",
         "refresh": 1,
         "sort": 1,
         "hide": 0

@@ -1,6 +1,6 @@
 # Cisco Meraki data source for Grafana
 
-Monitor Cisco Meraki networks in Grafana: device health, network and security events, wireless and switch stats, uplinks, VPN and MT sensors, all from the [Meraki Dashboard API v1](https://developer.cisco.com/meraki/api-v1/). It ships an org Overview dashboard plus six more that follow the order of the Meraki dashboard menu, and every query works with Grafana alerting.
+Monitor Cisco Meraki networks in Grafana: device health, network and security events, wireless and switch stats, uplinks, VPN and MT sensors, all from the [Meraki Dashboard API v1](https://developer.cisco.com/meraki/api-v1/). It ships an org Overview, an Organizations dashboard for MSPs and six more that follow the order of the Meraki dashboard menu, and every query works with Grafana alerting.
 
 ## Features
 
@@ -24,13 +24,17 @@ Monitor Cisco Meraki networks in Grafana: device health, network and security ev
 | Uplink Loss and Latency | Last 5 minutes of loss and latency per WAN uplink across the org, worst first |
 | Uplink Loss and Latency History | Loss, latency and jitter over time for one appliance uplink |
 | Uplink Usage History | Sent and received bits per second per WAN uplink of a network |
-| Alerts | Open organization alerts, most severe first |
+| Alerts | Open organization alerts, most severe first, or every alert that started in the time range |
+| License Overview | Licensing status and expiry for one organization, or every organization the API key can see |
 
-- Template variable support: networks (optionally only those with given `productTypes`), devices (optionally filtered by `networkId` or `productType`), and `eventProductTypes` for a network's event log product types
-- 7 pre-built dashboards: an org Overview with device counts, open alerts and WAN health, then, in the order of the Meraki dashboard menu, Network Events, Security & SD-WAN, Switching, Wireless, Sensors, Device Health
+- Multiple organizations from one data source: every query can pick any organization the API key can see, and each dashboard has an Organization picker, which suits MSPs
+- Annotations from Network Events, Security Events and Alerts. Resolved alerts show as a region from start to resolution
+- Template variable support: `organizations`, networks (optionally only those with given `productTypes`), devices (optionally filtered by `networkId` or `productType`), and `eventProductTypes` for a network's event log product types
+- 8 pre-built dashboards: an org Overview with device counts, open alerts and WAN health, an Organizations dashboard with licensing and expiry for every organization, then, in the order of the Meraki dashboard menu, Network Events, Security & SD-WAN, Switching, Wireless, Sensors, Device Health
 - Sensor queries can be narrowed to a network, a sensor and a metric. Each reading has one numeric value: door open, water present and similar switches are 1 or 0, and temperature is in °C unless the Fahrenheit switch is on. Button presses aren't included
 - API key stored securely in Grafana's encrypted config
 - Automatic pagination and retry with exponential backoff
+- Requests are paced to Meraki's limit of 10 a second per organization, and panels asking for the same data within 30 seconds share one response
 - Time ranges are trimmed to each Meraki endpoint's limits (for example 7 days per request for wireless stats), with a notice on the panel when that happens
 - 60-second TTL cache for network/device dropdown lists
 
@@ -63,8 +67,8 @@ In Grafana, add a new datasource of type **Cisco Meraki** and fill in:
 
 | Field | Description |
 |---|---|
-| Base URL | Meraki API base URL. Defaults to `https://api.meraki.com/api/v1`. Change for India (`api.in.meraki.com`) or FedRAMP (`api.gov.meraki.com`) regions. |
-| Organization ID | Your org ID, found under **Organization → Settings** in the Meraki dashboard. |
+| Region | The Meraki region your dashboard is in: Global (`api.meraki.com`), Canada (`api.meraki.ca`), China (`api.meraki.cn`), India (`api.meraki.in`) or US Government (`api.gov-meraki.com`). A custom URL also works. |
+| Default organization ID | The organization queries use unless they pick another one, found under **Organization → Settings** in the Meraki dashboard. |
 | API Key | Your Dashboard API key. Generate one under **My Profile → API access**. |
 
 Click **Save & Test**. A green check confirms connectivity.
