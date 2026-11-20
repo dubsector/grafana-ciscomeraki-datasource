@@ -199,11 +199,15 @@ export const SENSOR_METRICS = [
 
 export interface MerakiQuery extends DataQuery {
   queryType: QueryType;
+  /** Organization to query; empty means the data source's default */
+  organizationId?: string;
   networkId: string;
   deviceSerial: string;
   productType: string;
-  /** deviceAvailabilities only: query change history instead of live status */
+  /** deviceAvailabilities: change history instead of live status. assuranceAlerts: include resolved alerts */
   historical: boolean;
+  /** Set for annotation queries, which return time, timeEnd, title, text and tags */
+  annotation?: boolean;
   /** sensor queries only: one metric, or empty for all */
   metric?: string;
   /** sensor queries only: temperature in °F instead of °C */
@@ -232,6 +236,11 @@ export interface MerakiSecureOpts {
 }
 
 // ── API shapes (used by dropdowns) ───────────────────────────────────────────
+
+export interface MerakiOrganization {
+  id: string;
+  name: string;
+}
 
 export interface MerakiNetwork {
   id: string;
