@@ -13,6 +13,8 @@
 - SD-WAN health: uplink loss and latency across the org, loss, latency and jitter history for one uplink, and uplink usage in bits per second.
 - Alerts: open organization alerts, most severe first.
 - Multiple organizations: every query can pick any organization the API key can see, and each dashboard has an Organization picker. The data source's organization stays the default.
+- Annotations: network events, security events and alerts can mark charts. Resolved alerts show as a region from start to resolution, and the Overview dashboard marks alerts on its uplink charts.
+- Alerts can include resolved ones that started in the time range.
 - Overview dashboard with device counts, open alerts, the worst WAN uplinks and uplink detail for a chosen network.
 
 ### Changes

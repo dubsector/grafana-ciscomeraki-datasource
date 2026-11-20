@@ -24,6 +24,11 @@ export class MerakiDS extends DataSourceWithBackend<MerakiQuery, MerakiDSOpts> {
   constructor(settings: DataSourceInstanceSettings<MerakiDSOpts>) {
     super(settings);
     this.defaultOrg = String(settings.jsonData.organizationId ?? '');
+    // Network Events, Security Events and Alerts work as annotations. The
+    // backend returns time, timeEnd, title, text and tags for Grafana to map.
+    this.annotations = {
+      prepareQuery: anno => anno.target ? { ...anno.target, refId: anno.target.refId || 'Anno', annotation: true } : undefined,
+    };
   }
 
   getDefaultQuery(_: CoreApp): Partial<MerakiQuery> {

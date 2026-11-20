@@ -239,11 +239,11 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
   const optionalDevice   = OPTIONAL_DEVICE.includes(qt);
   const showDevice       = NEEDS_DEVICE.includes(qt) || optionalDevice;
   const showSensor       = qt === 'sensorReadingsLatest' || qt === 'sensorReadingsHistory';
-  const showHistorical   = qt === 'deviceAvailabilities';
+  const showHistorical   = qt === 'deviceAvailabilities' || qt === 'assuranceAlerts';
   const showUplink       = qt === 'uplinkLossLatencyHistory';
   const showEventPT      = qt === 'networkEvents';
   const showDeviceFilter = qt === 'deviceAvailabilities' || qt === 'deviceStatuses';
-  const isLive           = qt !== 'deviceAvailabilities' || !query.historical;
+  const isLive           = !showHistorical || !query.historical;
 
   const liveMessages: Partial<Record<QueryType, string>> = {
     deviceAvailabilities:   'Showing a live snapshot. Enable Historical Data to use the time range picker.',
@@ -255,7 +255,7 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
     deviceClients:          'Live client snapshot. Time range has no effect.',
     sensorReadingsLatest:   'Newest reading per sensor and metric. Time range has no effect.',
     uplinkLossLatency:      'Averages over the last 5 minutes. Time range has no effect.',
-    assuranceAlerts:        'Alerts open right now. Time range has no effect.',
+    assuranceAlerts:        'Alerts open right now. Enable Historical Data for every alert that started in the time range, resolved or not.',
   };
 
   const liveMsg = isLive && liveMessages[qt];
@@ -291,7 +291,9 @@ export function QueryEditor({ query, onChange, onRunQuery, datasource }: Props) 
         <InlineField
           label="Historical Data"
           labelWidth={18}
-          tooltip="Query change history as a time series instead of a live snapshot"
+          tooltip={qt === 'assuranceAlerts'
+            ? 'Every alert that started in the time range, including resolved ones'
+            : 'Query change history as a time series instead of a live snapshot'}
         >
           <InlineSwitch id="qe-historical" value={!!query.historical} onChange={onHistoricalToggle} />
         </InlineField>

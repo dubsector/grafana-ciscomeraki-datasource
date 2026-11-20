@@ -6,6 +6,7 @@
     "metrics": true,
     "backend": true,
     "alerting": true,
+    "annotations": true,
     "executable": "gpx_dubsector_meraki",
     "info": {
         "description": "Grafana datasource for the Cisco Meraki Dashboard API v1",

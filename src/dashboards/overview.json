@@ -53,7 +53,24 @@
   "timepicker": {},
   "refresh": "1m",
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "name": "Meraki alerts",
+        "datasource": {
+          "type": "dubsector-ciscomeraki-datasource",
+          "uid": "${DS}"
+        },
+        "enable": true,
+        "iconColor": "red",
+        "target": {
+          "refId": "Anno",
+          "queryType": "assuranceAlerts",
+          "organizationId": "${org}",
+          "networkId": "${network}",
+          "historical": true
+        }
+      }
+    ]
   },
   "version": 1,
   "id": null,

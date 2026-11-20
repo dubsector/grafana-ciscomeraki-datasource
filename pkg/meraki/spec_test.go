@@ -97,6 +97,7 @@ func TestClientMatchesSpec(t *testing.T) {
 		},
 		"ApplianceUplinksUsage": func() error { _, err := c.ApplianceUplinksUsage(ctx, "N_1", t0, t1); return err },
 		"AssuranceAlerts":       func() error { _, err := c.AssuranceAlerts(ctx, "N_1"); return err },
+		"AlertHistory":          func() error { _, err := c.AlertHistory(ctx, "N_1", t0, t1); return err },
 	}
 
 	ct := reflect.TypeOf(c)

@@ -384,3 +384,13 @@ func resolution(span time.Duration, valid ...int) string {
 	}
 	return strconv.Itoa(valid[len(valid)-1])
 }
+
+// AlertHistory is every alert, open or resolved, that started between t0
+// and t1. Empty networkID means every network.
+func (c *Client) AlertHistory(ctx context.Context, networkID string, t0, t1 time.Time) ([]json.RawMessage, error) {
+	p := url.Values{"resolved": {"true"}, "tsStart": {ts(t0)}, "tsEnd": {ts(t1)}, "perPage": {"300"}}
+	if networkID != "" {
+		p.Set("networkId", networkID)
+	}
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/assurance/alerts", c.orgID), p)
+}
