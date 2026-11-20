@@ -412,3 +412,20 @@ func (c *Client) AlertHistory(ctx context.Context, networkID string, t0, t1 time
 func (c *Client) LicensesOverview(ctx context.Context) ([]json.RawMessage, error) {
 	return c.get(ctx, fmt.Sprintf("/organizations/%s/licenses/overview", c.orgID), nil)
 }
+
+// TopApplications is the 50 applications that used the most data between
+// t0 and t1, in megabytes. Empty networkID means the whole organization.
+func (c *Client) TopApplications(ctx context.Context, networkID string, t0, t1 time.Time) ([]json.RawMessage, error) {
+	p := url.Values{"t0": {ts(t0)}, "t1": {ts(t1)}, "quantity": {"50"}}
+	if networkID != "" {
+		p.Set("networkId", networkID)
+	}
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/summary/top/applications/byUsage", c.orgID), p)
+}
+
+// TopClients is the 50 clients that used the most data between t0 and t1,
+// in megabytes, across the organization.
+func (c *Client) TopClients(ctx context.Context, t0, t1 time.Time) ([]json.RawMessage, error) {
+	p := url.Values{"t0": {ts(t0)}, "t1": {ts(t1)}, "quantity": {"50"}}
+	return c.get(ctx, fmt.Sprintf("/organizations/%s/summary/top/clients/byUsage", c.orgID), p)
+}

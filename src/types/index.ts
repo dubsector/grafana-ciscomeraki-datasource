@@ -23,7 +23,9 @@ export type QueryType =
   | 'uplinkLossLatencyHistory'
   | 'applianceUplinkUsage'
   | 'assuranceAlerts'
-  | 'licenseOverview';
+  | 'licenseOverview'
+  | 'topApplications'
+  | 'topClients';
 
 export interface QueryTypeOption {
   label: string;
@@ -51,6 +53,8 @@ export const QUERY_TYPE_OPTIONS: QueryTypeOption[] = [
   { value: 'uplinkLossLatencyHistory', label: 'Uplink Loss and Latency History', description: 'Loss, latency and jitter over time for one uplink' },
   { value: 'applianceUplinkUsage',     label: 'Uplink Usage History',        description: 'Sent and received bits per second per WAN uplink' },
   { value: 'assuranceAlerts',          label: 'Alerts',                      description: 'Open Meraki alerts, most severe first' },
+  { value: 'topApplications',          label: 'Top Applications',            description: 'The 50 applications that used the most data in the time range' },
+  { value: 'topClients',               label: 'Top Clients',                 description: 'The 50 clients that used the most data in the time range' },
   { value: 'licenseOverview',          label: 'License Overview',            description: 'Licensing status and expiry, for one or every organization' },
 ];
 
@@ -93,6 +97,8 @@ export const OPTIONAL_NETWORK: QueryType[] = [
   'uplinkLossLatency',
   'uplinkLossLatencyHistory',
   'assuranceAlerts',
+  'topApplications',
+  'topClients',
 ];
 
 // Query types that need a device serial selected

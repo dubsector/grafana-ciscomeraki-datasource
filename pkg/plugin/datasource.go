@@ -296,7 +296,11 @@ func (d *DS) run(ctx context.Context, bq backend.DataQuery) backend.DataResponse
 		if err != nil {
 			return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("%s (last %d days)", err, w.LookbackDays()))
 		}
-		if changed {
+		switch {
+		case changed && from.Before(t0):
+			notice = fmt.Sprintf("Meraki needs at least %s for this query. Showing %s to %s.",
+				w.MinSpan, from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
+		case changed:
 			notice = fmt.Sprintf("Meraki limits this query to %d days per request, going back at most %d days. Showing %s to %s.",
 				w.MaxSpanDays(), w.LookbackDays(), from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
 		}
@@ -372,6 +376,10 @@ func timeWindow(q query) (meraki.Window, bool) {
 		return meraki.LossLatencyWindow, true
 	case "applianceUplinkUsage":
 		return meraki.UplinkUsageWindow, true
+	case "topApplications":
+		return meraki.TopApplicationsWindow, true
+	case "topClients":
+		return meraki.TopClientsWindow, true
 	}
 	return meraki.Window{}, false
 }
@@ -494,6 +502,14 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 			return nil, err
 		}
 		return alertRows(rows), nil
+	case "topApplications":
+		return c.TopApplications(ctx, q.NetworkID, t0, t1)
+	case "topClients":
+		rows, err := c.TopClients(ctx, t0, t1)
+		if err != nil {
+			return nil, err
+		}
+		return topClientRows(rows, q.NetworkID), nil
 	case "licenseOverview":
 		raw, err := c.Organizations(ctx)
 		if err != nil {
