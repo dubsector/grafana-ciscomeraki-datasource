@@ -226,9 +226,11 @@ type query struct {
 	DeviceSerial   string `json:"deviceSerial"`
 	ProductType    string `json:"productType"`
 	Historical     bool   `json:"historical"`
-	Metric         string `json:"metric"`
-	Fahrenheit     bool   `json:"fahrenheit"`
-	Uplink         string `json:"uplink"`
+	// Annotation asks for Grafana annotation fields instead of a table.
+	Annotation bool   `json:"annotation"`
+	Metric     string `json:"metric"`
+	Fahrenheit bool   `json:"fahrenheit"`
+	Uplink     string `json:"uplink"`
 }
 
 func (d *DS) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
@@ -259,6 +261,14 @@ func (d *DS) run(ctx context.Context, bq backend.DataQuery) backend.DataResponse
 		t0, t1 = from, to
 	}
 
+	if q.Annotation {
+		if !annotationTypes[q.QueryType] {
+			return backend.ErrDataResponse(backend.StatusBadRequest, "annotations come from Network Events, Security Events or Alerts")
+		}
+		// Annotations mark when things happened, so alerts include resolved ones.
+		q.Historical = true
+	}
+
 	rows, err := d.dispatch(ctx, q, t0, t1)
 	if err != nil {
 		log.DefaultLogger.Error("meraki query", "type", q.QueryType, "err", err)
@@ -266,14 +276,13 @@ func (d *DS) run(ctx context.Context, bq backend.DataQuery) backend.DataResponse
 	}
 
 	var frames data.Frames
-	switch q.QueryType {
-	case "sensorReadingsHistory":
-		frames = sensorSeries(rows, q.Fahrenheit)
-	case "uplinkLossLatencyHistory":
-		frames = lossLatencySeries(rows, q.DeviceSerial, uplinkOrDefault(q.Uplink))
-	case "applianceUplinkUsage":
-		frames = uplinkUsageSeries(rows)
+	switch {
+	case q.Annotation:
+		frames = data.Frames{annotationFrame(q.QueryType, rows)}
 	default:
+		frames = queryFrames(q, rows)
+	}
+	if frames == nil {
 		frame, err := buildFrame(q.QueryType, rows)
 		if err != nil {
 			return backend.ErrDataResponse(backend.StatusInternal, err.Error())
@@ -287,6 +296,19 @@ func (d *DS) run(ctx context.Context, bq backend.DataQuery) backend.DataResponse
 		frames[0].AppendNotices(data.Notice{Severity: data.NoticeSeverityInfo, Text: notice})
 	}
 	return backend.DataResponse{Frames: frames}
+}
+
+// queryFrames shapes time series queries. Nil means a plain table.
+func queryFrames(q query, rows []json.RawMessage) data.Frames {
+	switch q.QueryType {
+	case "sensorReadingsHistory":
+		return sensorSeries(rows, q.Fahrenheit)
+	case "uplinkLossLatencyHistory":
+		return lossLatencySeries(rows, q.DeviceSerial, uplinkOrDefault(q.Uplink))
+	case "applianceUplinkUsage":
+		return uplinkUsageSeries(rows)
+	}
+	return nil
 }
 
 // timeWindow returns the Meraki time limits for query types that take t0/t1.
@@ -419,7 +441,13 @@ func (d *DS) dispatch(ctx context.Context, q query, t0, t1 time.Time) ([]json.Ra
 		}
 		return c.ApplianceUplinksUsage(ctx, q.NetworkID, t0, t1)
 	case "assuranceAlerts":
-		rows, err := c.AssuranceAlerts(ctx, q.NetworkID)
+		fetch := c.AssuranceAlerts
+		if q.Historical {
+			fetch = func(ctx context.Context, nid string) ([]json.RawMessage, error) {
+				return c.AlertHistory(ctx, nid, t0, t1)
+			}
+		}
+		rows, err := fetch(ctx, q.NetworkID)
 		if err != nil {
 			return nil, err
 		}

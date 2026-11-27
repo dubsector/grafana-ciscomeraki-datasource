@@ -204,6 +204,13 @@ func TestE2E(t *testing.T) {
 			run("AssuranceAlerts", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 				return c.AssuranceAlerts(ctx, "")
 			})
+			for _, a := range decode[struct{ StartedAt time.Time }](t, run("AlertHistory", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.AlertHistory(ctx, "", week0, now)
+			})) {
+				if a.StartedAt.Before(week0) || a.StartedAt.After(now) {
+					t.Errorf("AlertHistory: alert started %s, outside the week asked for", a.StartedAt)
+				}
+			}
 
 			for _, n := range nets {
 				t.Run(n.Name, func(t *testing.T) {

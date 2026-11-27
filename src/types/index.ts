@@ -204,8 +204,10 @@ export interface MerakiQuery extends DataQuery {
   networkId: string;
   deviceSerial: string;
   productType: string;
-  /** deviceAvailabilities only: query change history instead of live status */
+  /** deviceAvailabilities: change history instead of live status. assuranceAlerts: include resolved alerts */
   historical: boolean;
+  /** Set for annotation queries, which return time, timeEnd, title, text and tags */
+  annotation?: boolean;
   /** sensor queries only: one metric, or empty for all */
   metric?: string;
   /** sensor queries only: temperature in °F instead of °C */
