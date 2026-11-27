@@ -242,3 +242,32 @@ func TestRunRequiresNetworkForWirelessStats(t *testing.T) {
 		}
 	}
 }
+
+func TestRunQueriesTheChosenOrganization(t *testing.T) {
+	t.Parallel()
+	var (
+		mu    sync.Mutex
+		paths []string
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		paths = append(paths, r.URL.Path)
+		mu.Unlock()
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	t.Cleanup(server.Close)
+	ds := &DS{c: meraki.New(server.URL, "org-1", "key")}
+	now := time.Now()
+
+	for _, q := range []string{`{"queryType":"assuranceAlerts"}`, `{"queryType":"assuranceAlerts","organizationId":"org-2"}`, `{"queryType":"assuranceAlerts","organizationId":2}`} {
+		if resp := ds.run(context.Background(), dataQuery(q, now.Add(-time.Hour), now)); resp.Error != nil {
+			t.Fatal(resp.Error)
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	want := []string{"/organizations/org-1/assurance/alerts", "/organizations/org-2/assurance/alerts", "/organizations/2/assurance/alerts"}
+	if !slices.Equal(paths, want) {
+		t.Errorf("paths = %q, want %q", paths, want)
+	}
+}

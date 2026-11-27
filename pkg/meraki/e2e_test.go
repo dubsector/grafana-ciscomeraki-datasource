@@ -356,6 +356,9 @@ func TestE2E(t *testing.T) {
 	ct := reflect.TypeFor[*Client]()
 	for i := range ct.NumMethod() {
 		name := ct.Method(i).Name
+		if notRequests[name] {
+			continue
+		}
 		s := e.stats[name]
 		switch {
 		case s == nil:

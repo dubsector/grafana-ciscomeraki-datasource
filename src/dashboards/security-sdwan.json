@@ -93,6 +93,7 @@
         {
           "refId": "A",
           "queryType": "applianceUplinkStatuses",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "productType": "",
@@ -248,6 +249,7 @@
         {
           "refId": "A",
           "queryType": "vpnStats",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "productType": "",
@@ -481,6 +483,7 @@
         {
           "refId": "A",
           "queryType": "applianceLanPorts",
+          "organizationId": "${org}",
           "networkId": "${network}",
           "deviceSerial": "",
           "productType": "",
@@ -606,6 +609,19 @@
         "hide": 0
       },
       {
+        "name": "org",
+        "type": "query",
+        "label": "Organization",
+        "datasource": {
+          "type": "dubsector-ciscomeraki-datasource",
+          "uid": "${DS}"
+        },
+        "query": "{\"queryType\":\"organizations\"}",
+        "refresh": 1,
+        "sort": 0,
+        "hide": 0
+      },
+      {
         "name": "network",
         "type": "query",
         "label": "Network",
@@ -613,7 +629,7 @@
           "type": "dubsector-ciscomeraki-datasource",
           "uid": "${DS}"
         },
-        "query": "{\"queryType\":\"networks\",\"productTypes\":[\"appliance\"]}",
+        "query": "{\"queryType\":\"networks\",\"organizationId\":\"${org}\",\"productTypes\":[\"appliance\"]}",
         "refresh": 1,
         "sort": 1,
         "hide": 0
