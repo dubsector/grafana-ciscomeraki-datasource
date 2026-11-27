@@ -18,7 +18,7 @@ jobs:
           persist-credentials: false
 
       - name: Review dependency changes
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
         with:
           # react-router only reaches us via @grafana/ui -> react-router-dom-v5-compat,
           # which pins it to an exact 6.30.x. The fix is in 7.18.0 and the v5-compat line
