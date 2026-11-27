@@ -22,7 +22,8 @@ export type QueryType =
   | 'uplinkLossLatency'
   | 'uplinkLossLatencyHistory'
   | 'applianceUplinkUsage'
-  | 'assuranceAlerts';
+  | 'assuranceAlerts'
+  | 'licenseOverview';
 
 export interface QueryTypeOption {
   label: string;
@@ -50,6 +51,7 @@ export const QUERY_TYPE_OPTIONS: QueryTypeOption[] = [
   { value: 'uplinkLossLatencyHistory', label: 'Uplink Loss and Latency History', description: 'Loss, latency and jitter over time for one uplink' },
   { value: 'applianceUplinkUsage',     label: 'Uplink Usage History',        description: 'Sent and received bits per second per WAN uplink' },
   { value: 'assuranceAlerts',          label: 'Alerts',                      description: 'Open Meraki alerts, most severe first' },
+  { value: 'licenseOverview',          label: 'License Overview',            description: 'Licensing status and expiry, for one or every organization' },
 ];
 
 // Query types that are live snapshots (time range has no effect)
@@ -64,6 +66,7 @@ export const LIVE_QUERY_TYPES: QueryType[] = [
   'sensorReadingsLatest',
   'uplinkLossLatency',
   'assuranceAlerts',
+  'licenseOverview',
 ];
 
 // Query types that need a network selected
@@ -206,6 +209,8 @@ export interface MerakiQuery extends DataQuery {
   productType: string;
   /** deviceAvailabilities: change history instead of live status. assuranceAlerts: include resolved alerts */
   historical: boolean;
+  /** licenseOverview: every organization the API key can see */
+  allOrganizations?: boolean;
   /** Set for annotation queries, which return time, timeEnd, title, text and tags */
   annotation?: boolean;
   /** sensor queries only: one metric, or empty for all */

@@ -204,6 +204,17 @@ func TestE2E(t *testing.T) {
 			run("AssuranceAlerts", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 				return c.AssuranceAlerts(ctx, "")
 			})
+			lic := run("LicensesOverview", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.LicensesOverview(ctx)
+			})
+			for _, l := range decode[struct {
+				ExpirationDate string
+				LicenseCount   *int
+			}](t, lic) {
+				if l.ExpirationDate == "" && l.LicenseCount == nil {
+					t.Error("LicensesOverview: neither co-termination nor per-device fields")
+				}
+			}
 			for _, a := range decode[struct{ StartedAt time.Time }](t, run("AlertHistory", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 				return c.AlertHistory(ctx, "", week0, now)
 			})) {
