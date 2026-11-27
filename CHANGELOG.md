@@ -15,6 +15,7 @@
 - Multiple organizations: every query can pick any organization the API key can see, and each dashboard has an Organization picker. The data source's organization stays the default.
 - Annotations: network events, security events and alerts can mark charts. Resolved alerts show as a region from start to resolution, and the Overview dashboard marks alerts on its uplink charts.
 - Alerts can include resolved ones that started in the time range.
+- Top Applications and Top Clients by data used in the time range. The Overview dashboard shows both.
 - License Overview: licensing status and expiry for one organization or every organization, soonest expiry first, with both co-termination and per-device licensing. Organizations the API key can't read get a row saying why.
 - Organizations dashboard: licensing and expiry for every organization, for MSPs.
 - Overview dashboard with device counts, open alerts, the worst WAN uplinks and uplink detail for a chosen network.

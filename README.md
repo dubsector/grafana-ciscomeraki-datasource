@@ -25,12 +25,14 @@ Monitor Cisco Meraki networks in Grafana: device health, network and security ev
 | Uplink Loss and Latency History | Loss, latency and jitter over time for one appliance uplink |
 | Uplink Usage History | Sent and received bits per second per WAN uplink of a network |
 | Alerts | Open organization alerts, most severe first, or every alert that started in the time range |
+| Top Applications | The 50 applications that used the most data in the time range, for the organization or one network |
+| Top Clients | The 50 clients that used the most data in the time range |
 | License Overview | Licensing status and expiry for one organization, or every organization the API key can see |
 
 - Multiple organizations from one data source: every query can pick any organization the API key can see, and each dashboard has an Organization picker, which suits MSPs
 - Annotations from Network Events, Security Events and Alerts. Resolved alerts show as a region from start to resolution
 - Template variable support: `organizations`, networks (optionally only those with given `productTypes`), devices (optionally filtered by `networkId` or `productType`), and `eventProductTypes` for a network's event log product types
-- 8 pre-built dashboards: an org Overview with device counts, open alerts and WAN health, an Organizations dashboard with licensing and expiry for every organization, then, in the order of the Meraki dashboard menu, Network Events, Security & SD-WAN, Switching, Wireless, Sensors, Device Health
+- 8 pre-built dashboards: an org Overview with device counts, open alerts, WAN health and top usage, an Organizations dashboard with licensing and expiry for every organization, then, in the order of the Meraki dashboard menu, Network Events, Security & SD-WAN, Switching, Wireless, Sensors, Device Health
 - Sensor queries can be narrowed to a network, a sensor and a metric. Each reading has one numeric value: door open, water present and similar switches are 1 or 0, and temperature is in °C unless the Fahrenheit switch is on. Button presses aren't included
 - API key stored securely in Grafana's encrypted config
 - Automatic pagination and retry with exponential backoff

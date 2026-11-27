@@ -204,6 +204,12 @@ func TestE2E(t *testing.T) {
 			run("AssuranceAlerts", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 				return c.AssuranceAlerts(ctx, "")
 			})
+			run("TopApplications", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.TopApplications(ctx, "", day0, now)
+			})
+			run("TopClients", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
+				return c.TopClients(ctx, day0, now)
+			})
 			lic := run("LicensesOverview", func(ctx context.Context, c *Client) ([]json.RawMessage, error) {
 				return c.LicensesOverview(ctx)
 			})

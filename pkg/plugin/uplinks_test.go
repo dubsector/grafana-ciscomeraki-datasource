@@ -64,3 +64,14 @@ func TestAlertRowsMostSevereFirst(t *testing.T) {
 		t.Errorf("first alert = %+v", first)
 	}
 }
+
+func TestTopClientRowsFilterByNetwork(t *testing.T) {
+	t.Parallel()
+	rows := topClientRows([]json.RawMessage{
+		json.RawMessage(`{"name":"NAS","mac":"00:11","network":{"id":"N_1","name":"HQ"},"usage":{"total":10,"upstream":9,"downstream":1,"percentage":50}}`),
+		json.RawMessage(`{"name":"Phone","mac":"00:22","network":{"id":"N_2","name":"Austin"},"usage":{"total":5}}`),
+	}, "N_1")
+	if len(rows) != 1 || string(rows[0]) != `{"name":"NAS","mac":"00:11","networkName":"HQ","total":10,"downstream":1,"upstream":9,"percentage":50}` {
+		t.Errorf("rows = %s", rows)
+	}
+}

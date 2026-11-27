@@ -12,6 +12,8 @@ const day = 24 * time.Hour
 type Window struct {
 	Lookback time.Duration
 	MaxSpan  time.Duration
+	// MinSpan, when set, widens a shorter range back from t1.
+	MinSpan time.Duration
 }
 
 var (
@@ -23,6 +25,8 @@ var (
 	SensorHistoryWindow       = Window{Lookback: 365 * day, MaxSpan: 7 * day}
 	LossLatencyWindow         = Window{Lookback: 60 * day, MaxSpan: 31 * day}
 	UplinkUsageWindow         = Window{Lookback: 30 * day, MaxSpan: 30 * day}
+	TopApplicationsWindow     = Window{Lookback: 186 * day, MaxSpan: 186 * day, MinSpan: 25 * time.Minute}
+	TopClientsWindow          = Window{Lookback: 186 * day, MaxSpan: 186 * day, MinSpan: 8 * time.Hour}
 )
 
 func (w Window) LookbackDays() int { return int(w.Lookback / day) }
@@ -42,6 +46,9 @@ func (w Window) Clamp(t0, t1, now time.Time) (from, to time.Time, changed bool, 
 	}
 	if to.Sub(from) > w.MaxSpan {
 		from = to.Add(-w.MaxSpan)
+	}
+	if w.MinSpan > 0 && to.Sub(from) < w.MinSpan {
+		from = to.Add(-w.MinSpan)
 	}
 	if !to.After(from) {
 		return t0, t1, false, ErrOutsideWindow
